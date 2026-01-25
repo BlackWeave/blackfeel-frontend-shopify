@@ -111,7 +111,7 @@ export default function AboutPage() {
               </h2>
               <p className="text-muted-foreground leading-relaxed mb-6">
                 Every Swan Tee begins with premium Supima cotton, sourced from family 
-                farms in California's San Joaquin Valley. This cotton is known for its 
+                farms in California&apos;s San Joaquin Valley. This cotton is known for its 
                 extra-long fibers, which create a softer, stronger, and more durable fabric.
               </p>
               <p className="text-muted-foreground leading-relaxed mb-8">

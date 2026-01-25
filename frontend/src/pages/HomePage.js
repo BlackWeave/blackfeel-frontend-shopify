@@ -250,7 +250,7 @@ export default function HomePage() {
             ].map((review, i) => (
               <div key={i} className="text-center">
                 <p className="text-lg leading-relaxed mb-6 text-primary-foreground/90">
-                  "{review.quote}"
+                  &ldquo;{review.quote}&rdquo;
                 </p>
                 <div>
                   <span className="font-medium">{review.author}</span>
