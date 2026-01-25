@@ -194,8 +194,8 @@ export default function AboutPage() {
             EXPERIENCE THE DIFFERENCE
           </h2>
           <p className="text-muted-foreground mb-10 max-w-lg mx-auto">
-            Join thousands of customers who've upgraded their wardrobe with Swan Tee. 
-            Once you try it, you'll understand why we call it the perfect t-shirt.
+            Join thousands of customers who have upgraded their wardrobe with Swan Tee. 
+            Once you try it, you will understand why we call it the perfect t-shirt.
           </p>
           <Button 
             asChild 

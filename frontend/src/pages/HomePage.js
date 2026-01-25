@@ -233,7 +233,7 @@ export default function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12">
             {[
               {
-                quote: "The best t-shirt I've ever owned. The fit is perfect and it's held up amazingly after dozens of washes.",
+                quote: "The best t-shirt I have ever owned. The fit is perfect and it has held up amazingly after dozens of washes.",
                 author: "Alex M.",
                 title: "Verified Buyer"
               },
