@@ -44,9 +44,9 @@ export const SizeGuide = ({ trigger }) => {
                 {SIZES.map((size) => (
                   <TableRow key={size}>
                     <TableCell className="font-medium">{size}</TableCell>
-                    <TableCell>{SIZE_GUIDE[size].chest}"</TableCell>
-                    <TableCell>{SIZE_GUIDE[size].length}"</TableCell>
-                    <TableCell>{SIZE_GUIDE[size].shoulder}"</TableCell>
+                    <TableCell>{SIZE_GUIDE[size].chest}&quot;</TableCell>
+                    <TableCell>{SIZE_GUIDE[size].length}&quot;</TableCell>
+                    <TableCell>{SIZE_GUIDE[size].shoulder}&quot;</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
