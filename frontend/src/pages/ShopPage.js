@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { Filter, X, ChevronDown } from 'lucide-react';
+import { Filter, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -12,11 +12,21 @@ export default function ShopPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   
-  // Get filter values from URL
+  // Get filter values from URL - memoized to prevent unnecessary re-renders
   const selectedCategory = searchParams.get('category') || '';
-  const selectedColors = searchParams.get('colors')?.split(',').filter(Boolean) || [];
-  const selectedSizes = searchParams.get('sizes')?.split(',').filter(Boolean) || [];
+  const colorsParam = searchParams.get('colors');
+  const sizesParam = searchParams.get('sizes');
   const sortBy = searchParams.get('sort') || 'featured';
+  
+  const selectedColors = useMemo(() => 
+    colorsParam?.split(',').filter(Boolean) || [], 
+    [colorsParam]
+  );
+  
+  const selectedSizes = useMemo(() => 
+    sizesParam?.split(',').filter(Boolean) || [], 
+    [sizesParam]
+  );
 
   // Filter products
   const filteredProducts = useMemo(() => {
