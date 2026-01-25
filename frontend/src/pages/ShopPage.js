@@ -8,6 +8,104 @@ import { Separator } from '@/components/ui/separator';
 import { ProductCard } from '@/components/product/ProductCard';
 import { PRODUCTS, CATEGORIES, COLORS, SIZES } from '@/data/products';
 
+// Filter Content Component (moved outside to prevent re-render issues)
+const FilterContent = ({ 
+  selectedCategory, 
+  selectedColors, 
+  selectedSizes, 
+  hasActiveFilters,
+  updateFilters,
+  toggleArrayFilter,
+  clearFilters 
+}) => (
+  <div className="space-y-8">
+    {/* Categories */}
+    <div>
+      <h4 className="font-display text-sm tracking-wider mb-4">CATEGORIES</h4>
+      <div className="space-y-3">
+        <button
+          onClick={() => updateFilters('category', '')}
+          className={`block text-sm transition-colors ${
+            !selectedCategory ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          All Products
+        </button>
+        {CATEGORIES.map((cat) => (
+          <button
+            key={cat.id}
+            onClick={() => updateFilters('category', cat.id)}
+            className={`block text-sm transition-colors ${
+              selectedCategory === cat.id ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {cat.name}
+          </button>
+        ))}
+      </div>
+    </div>
+
+    <Separator />
+
+    {/* Colors */}
+    <div>
+      <h4 className="font-display text-sm tracking-wider mb-4">COLORS</h4>
+      <div className="space-y-3">
+        {COLORS.map((color) => (
+          <label key={color.id} className="flex items-center gap-3 cursor-pointer group">
+            <Checkbox
+              checked={selectedColors.includes(color.id)}
+              onCheckedChange={() => toggleArrayFilter('colors', color.id)}
+            />
+            <span
+              className="w-5 h-5 rounded-full border border-border"
+              style={{ backgroundColor: color.hex }}
+            />
+            <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
+              {color.name}
+            </span>
+          </label>
+        ))}
+      </div>
+    </div>
+
+    <Separator />
+
+    {/* Sizes */}
+    <div>
+      <h4 className="font-display text-sm tracking-wider mb-4">SIZES</h4>
+      <div className="flex flex-wrap gap-2">
+        {SIZES.map((size) => (
+          <button
+            key={size}
+            onClick={() => toggleArrayFilter('sizes', size)}
+            className={`h-10 min-w-[2.5rem] px-3 border text-sm font-medium transition-colors ${
+              selectedSizes.includes(size)
+                ? 'border-foreground bg-foreground text-background'
+                : 'border-border hover:border-foreground'
+            }`}
+          >
+            {size}
+          </button>
+        ))}
+      </div>
+    </div>
+
+    {hasActiveFilters && (
+      <>
+        <Separator />
+        <Button
+          variant="outline"
+          onClick={clearFilters}
+          className="w-full"
+        >
+          Clear All Filters
+        </Button>
+      </>
+    )}
+  </div>
+);
+
 export default function ShopPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -100,95 +198,16 @@ export default function ShopPage() {
 
   const currentCategoryName = CATEGORIES.find(c => c.id === selectedCategory)?.name || 'All Products';
 
-  // Filter Component (shared between desktop and mobile)
-  const FilterContent = () => (
-    <div className="space-y-8">
-      {/* Categories */}
-      <div>
-        <h4 className="font-display text-sm tracking-wider mb-4">CATEGORIES</h4>
-        <div className="space-y-3">
-          <button
-            onClick={() => updateFilters('category', '')}
-            className={`block text-sm transition-colors ${
-              !selectedCategory ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            All Products
-          </button>
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => updateFilters('category', cat.id)}
-              className={`block text-sm transition-colors ${
-                selectedCategory === cat.id ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {cat.name}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <Separator />
-
-      {/* Colors */}
-      <div>
-        <h4 className="font-display text-sm tracking-wider mb-4">COLORS</h4>
-        <div className="space-y-3">
-          {COLORS.map((color) => (
-            <label key={color.id} className="flex items-center gap-3 cursor-pointer group">
-              <Checkbox
-                checked={selectedColors.includes(color.id)}
-                onCheckedChange={() => toggleArrayFilter('colors', color.id)}
-              />
-              <span
-                className="w-5 h-5 rounded-full border border-border"
-                style={{ backgroundColor: color.hex }}
-              />
-              <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
-                {color.name}
-              </span>
-            </label>
-          ))}
-        </div>
-      </div>
-
-      <Separator />
-
-      {/* Sizes */}
-      <div>
-        <h4 className="font-display text-sm tracking-wider mb-4">SIZES</h4>
-        <div className="flex flex-wrap gap-2">
-          {SIZES.map((size) => (
-            <button
-              key={size}
-              onClick={() => toggleArrayFilter('sizes', size)}
-              className={`h-10 min-w-[2.5rem] px-3 border text-sm font-medium transition-colors ${
-                selectedSizes.includes(size)
-                  ? 'border-foreground bg-foreground text-background'
-                  : 'border-border hover:border-foreground'
-              }`}
-            >
-              {size}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {hasActiveFilters && (
-        <>
-          <Separator />
-          <Button
-            variant="outline"
-            onClick={clearFilters}
-            className="w-full"
-          >
-            Clear All Filters
-          </Button>
-        </>
-      )}
-    </div>
-  );
+  // Common filter props
+  const filterProps = {
+    selectedCategory,
+    selectedColors,
+    selectedSizes,
+    hasActiveFilters,
+    updateFilters,
+    toggleArrayFilter,
+    clearFilters
+  };
 
   return (
     <div className="min-h-screen">
@@ -226,7 +245,7 @@ export default function ShopPage() {
           <aside className="hidden lg:block w-64 flex-shrink-0">
             <div className="sticky top-24">
               <h3 className="font-display text-lg tracking-wider mb-6">FILTERS</h3>
-              <FilterContent />
+              <FilterContent {...filterProps} />
             </div>
           </aside>
 
@@ -254,7 +273,7 @@ export default function ShopPage() {
                         FILTERS
                       </SheetTitle>
                     </SheetHeader>
-                    <FilterContent />
+                    <FilterContent {...filterProps} />
                   </SheetContent>
                 </Sheet>
 
