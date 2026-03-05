@@ -224,6 +224,11 @@ export default function ShopPage() {
 
   const currentCategoryName = CATEGORIES.find(c => c.id === selectedCategory)?.name || 'All Products';
 
+  // Handle protected category click
+  const handleProtectedClick = (categoryId) => {
+    requestAuth(`/shop?category=${categoryId}`);
+  };
+
   // Common filter props
   const filterProps = {
     selectedCategory,
@@ -232,7 +237,9 @@ export default function ShopPage() {
     hasActiveFilters,
     updateFilters,
     toggleArrayFilter,
-    clearFilters
+    clearFilters,
+    isAuthenticated,
+    onProtectedClick: handleProtectedClick
   };
 
   return (
