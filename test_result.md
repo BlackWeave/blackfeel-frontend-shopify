@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Test the Swan Tee e-commerce website at https://tshirt-portal.preview.emergentagent.com/ for comprehensive functionality including homepage, shop page, product detail page, cart functionality, about page, and mobile responsiveness."
+user_problem_statement: "Test the Swan Tee e-commerce website authentication at https://tshirt-portal.preview.emergentagent.com/ including unauthenticated state with lock indicators, auth modal triggers, Google sign-in flow (mock auth), authenticated state access, and sign out functionality."
 
 frontend:
   - task: "Homepage Tests"
