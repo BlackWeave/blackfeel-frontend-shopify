@@ -1,11 +1,12 @@
-import React, { useState, useMemo } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
-import { Filter, X } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
+import { Filter, X, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { ProductCard } from '@/components/product/ProductCard';
+import { useAuth, PROTECTED_CATEGORIES } from '@/context/AuthContext';
 import { PRODUCTS, CATEGORIES, COLORS, SIZES } from '@/data/products';
 
 // Filter Content Component (moved outside to prevent re-render issues)
@@ -16,7 +17,9 @@ const FilterContent = ({
   hasActiveFilters,
   updateFilters,
   toggleArrayFilter,
-  clearFilters 
+  clearFilters,
+  isAuthenticated,
+  onProtectedClick
 }) => (
   <div className="space-y-8">
     {/* Categories */}
