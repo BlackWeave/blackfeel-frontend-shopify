@@ -1,15 +1,27 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowRight, Star, Truck, RefreshCw, Shield } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight, Star, Truck, RefreshCw, Shield, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ProductCard } from '@/components/product/ProductCard';
+import { useAuth, PROTECTED_CATEGORIES } from '@/context/AuthContext';
 import { CATEGORIES, PRODUCTS, HERO_IMAGE, LOGO_URL } from '@/data/products';
 
 export default function HomePage() {
+  const { isAuthenticated, requestAuth } = useAuth();
+  const navigate = useNavigate();
+  
   // Get featured products (one from each category)
   const featuredProducts = CATEGORIES.map(cat => 
     PRODUCTS.find(p => p.category === cat.id)
   ).filter(Boolean);
+
+  // Handle category click with auth check
+  const handleCategoryClick = (e, category) => {
+    if (PROTECTED_CATEGORIES.includes(category.id) && !isAuthenticated) {
+      e.preventDefault();
+      requestAuth(`/shop?category=${category.id}`);
+    }
+  };
 
   return (
     <div className="min-h-screen">
@@ -105,6 +117,7 @@ export default function HomePage() {
               <Link
                 key={category.id}
                 to={`/shop?category=${category.id}`}
+                onClick={(e) => handleCategoryClick(e, category)}
                 className="group relative aspect-[3/4] overflow-hidden bg-secondary"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
@@ -114,6 +127,15 @@ export default function HomePage() {
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent" />
+                
+                {/* Lock overlay for protected categories */}
+                {PROTECTED_CATEGORIES.includes(category.id) && !isAuthenticated && (
+                  <div className="absolute top-4 right-4 bg-primary text-primary-foreground px-3 py-1.5 text-xs font-medium flex items-center gap-1.5">
+                    <Lock className="h-3 w-3" />
+                    Sign in to access
+                  </div>
+                )}
+                
                 <div className="absolute inset-0 flex flex-col justify-end p-8">
                   <span className="text-xs tracking-widest text-muted-foreground mb-2">
                     FROM ${category.price}
