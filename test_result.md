@@ -195,6 +195,66 @@ frontend:
         - agent: "testing"
         - comment: "✅ Mobile responsiveness tests passed: Mobile viewport (390x844) displays correctly, hamburger menu opens and closes properly, mobile shop page loads with proper layout, mobile filter sheet opens and closes correctly, all core functionality works on mobile"
 
+  - task: "Authentication - Unauthenticated State"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/pages/HomePage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "Need to verify homepage loads with lock indicators on VOTED DESIGNS and AI nav items, collections section shows Sign in to access badges on Voted Designs and AI cards, Basic collection and shop can be accessed freely"
+
+  - task: "Authentication - Auth Modal Triggers"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/components/auth/AuthModal.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "Need to verify clicking on VOTED DESIGNS in nav shows auth modal, clicking on AI in nav shows auth modal, clicking on Voted Designs card in collections shows auth modal, clicking on AI card in collections shows auth modal, auth modal shows Google sign-in button"
+
+  - task: "Authentication - Google Sign-In Flow"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/context/AuthContext.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "Need to verify clicking Continue with Google button signs user in (mock auth), user gets redirected to the protected page they were trying to access, user avatar appears in header"
+
+  - task: "Authentication - Authenticated State"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/components/layout/Header.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "Need to verify after signing in user can access Voted Designs collection, user can access AI collection, lock badges/indicators are removed, clicking user avatar shows dropdown with name, email, My Account, Sign Out"
+
+  - task: "Authentication - Sign Out"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/context/AuthContext.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "Need to verify clicking Sign Out in user dropdown signs user out, lock indicators return on protected items"
+
 metadata:
   created_by: "testing_agent"
   version: "1.0"
