@@ -261,7 +261,12 @@ metadata:
   test_sequence: 1
 
 test_plan:
-  current_focus: []
+  current_focus:
+    - "Authentication - Unauthenticated State"
+    - "Authentication - Auth Modal Triggers"
+    - "Authentication - Google Sign-In Flow"
+    - "Authentication - Authenticated State"
+    - "Authentication - Sign Out"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
