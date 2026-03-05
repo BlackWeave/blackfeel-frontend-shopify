@@ -124,12 +124,23 @@ const FilterContent = ({
 export default function ShopPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const { isAuthenticated, requestAuth } = useAuth();
+  const navigate = useNavigate();
   
   // Get filter values from URL - memoized to prevent unnecessary re-renders
   const selectedCategory = searchParams.get('category') || '';
   const colorsParam = searchParams.get('colors');
   const sizesParam = searchParams.get('sizes');
   const sortBy = searchParams.get('sort') || 'featured';
+  
+  // Check if current category requires auth
+  useEffect(() => {
+    if (selectedCategory && PROTECTED_CATEGORIES.includes(selectedCategory) && !isAuthenticated) {
+      // Redirect to shop and show auth modal
+      setSearchParams({});
+      requestAuth(`/shop?category=${selectedCategory}`);
+    }
+  }, [selectedCategory, isAuthenticated, requestAuth, setSearchParams]);
   
   const selectedColors = useMemo(() => 
     colorsParam?.split(',').filter(Boolean) || [], 
