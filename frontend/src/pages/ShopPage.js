@@ -34,17 +34,29 @@ const FilterContent = ({
         >
           All Products
         </button>
-        {CATEGORIES.map((cat) => (
-          <button
-            key={cat.id}
-            onClick={() => updateFilters('category', cat.id)}
-            className={`block text-sm transition-colors ${
-              selectedCategory === cat.id ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {cat.name}
-          </button>
-        ))}
+        {CATEGORIES.map((cat) => {
+          const isProtected = PROTECTED_CATEGORIES.includes(cat.id);
+          const needsAuth = isProtected && !isAuthenticated;
+          
+          return (
+            <button
+              key={cat.id}
+              onClick={() => {
+                if (needsAuth) {
+                  onProtectedClick(cat.id);
+                } else {
+                  updateFilters('category', cat.id);
+                }
+              }}
+              className={`flex items-center gap-2 text-sm transition-colors ${
+                selectedCategory === cat.id ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {cat.name}
+              {needsAuth && <Lock className="h-3 w-3" />}
+            </button>
+          );
+        })}
       </div>
     </div>
 
