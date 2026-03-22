@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Test the Swan Tee e-commerce website authentication at https://tshirt-portal.preview.emergentagent.com/ including unauthenticated state with lock indicators, auth modal triggers, Google sign-in flow (mock auth), authenticated state access, and sign out functionality."
+user_problem_statement: "Test the Swan Tee / BlackFeel e-commerce website at https://tshirt-portal.preview.emergentagent.com/ with focus on the Shopify integration features: Product Page Tests (navigate to /product/basic-1, verify INR pricing with ₹ symbol, verify 'Free shipping over ₹999' and '7-day returns' text, select color/size and add to cart), Cart Tests (verify cart drawer opens, INR pricing format, subtotal in INR, checkout button says 'CHECKOUT', 'Shipping & taxes calculated at checkout' text), Shop Page Tests (navigate to /shop, verify products load, INR pricing format, test filtering). Note: Shopify API is not configured so it should be using mock data, but prices should still display in INR format."
 
 frontend:
   - task: "Homepage Tests"
