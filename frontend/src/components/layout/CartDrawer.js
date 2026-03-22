@@ -1,22 +1,37 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Minus, Plus, X, ShoppingBag } from 'lucide-react';
+import { Minus, Plus, X, ShoppingBag, Loader2, AlertCircle } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCart } from '@/context/CartContext';
-import { getColorById } from '@/data/products';
+import { formatPrice, isShopifyConfigured } from '@/lib/shopify';
 
 export const CartDrawer = () => {
   const { 
     items, 
     removeItem, 
     updateQuantity, 
-    totalPrice, 
+    totalPrice,
+    currencyCode,
     isCartOpen, 
-    setIsCartOpen 
+    setIsCartOpen,
+    isCheckoutLoading,
+    checkoutError,
+    initiateCheckout,
   } = useCart();
+
+  const handleCheckout = async () => {
+    // Initiate Shopify checkout - redirects to Shopify checkout page
+    // where Razorpay payment gateway and Delhivery shipping are configured
+    await initiateCheckout();
+  };
+
+  // Format price based on currency (INR for Indian market)
+  const displayPrice = (amount) => {
+    return formatPrice(amount, currencyCode);
+  };
 
   return (
     <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
@@ -50,112 +65,144 @@ export const CartDrawer = () => {
           <>
             <ScrollArea className="flex-1 py-4">
               <div className="space-y-4">
-                {items.map((item) => {
-                  const color = getColorById(item.color);
-                  return (
-                    <div 
-                      key={`${item.product.id}-${item.size}-${item.color}`}
-                      className="flex gap-4 p-3 bg-secondary/30 rounded-sm"
-                    >
-                      {/* Product Image */}
-                      <div className="w-20 h-24 bg-secondary overflow-hidden flex-shrink-0">
-                        <img
-                          src={item.product.images[0]}
-                          alt={item.product.name}
-                          className="w-full h-full object-cover"
-                        />
+                {items.map((item) => (
+                  <div 
+                    key={`${item.product.id}-${item.size}-${item.color}`}
+                    className="flex gap-4 p-3 bg-secondary/30 rounded-sm"
+                  >
+                    {/* Product Image */}
+                    <div className="w-20 h-24 bg-secondary overflow-hidden flex-shrink-0">
+                      <img
+                        src={item.product.images?.[0] || '/placeholder.png'}
+                        alt={item.product.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+
+                    {/* Product Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-medium text-sm truncate pr-2">
+                            {item.product.name}
+                          </h4>
+                          <div className="flex items-center gap-2 mt-1">
+                            {item.size && (
+                              <>
+                                <span className="text-xs text-muted-foreground">
+                                  {item.size}
+                                </span>
+                                {item.color && (
+                                  <span className="text-xs text-muted-foreground">/</span>
+                                )}
+                              </>
+                            )}
+                            {item.color && (
+                              <span className="text-xs text-muted-foreground">
+                                {item.color}
+                              </span>
+                            )}
+                          </div>
+                          {/* COD Badge if available */}
+                          {item.product.codAvailable && (
+                            <span className="inline-block mt-1 text-[10px] bg-green-100 text-green-800 px-1.5 py-0.5 rounded">
+                              COD Available
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => removeItem(item.product.id, item.size, item.color)}
+                          className="text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
                       </div>
 
-                      {/* Product Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h4 className="font-medium text-sm truncate pr-2">
-                              {item.product.name}
-                            </h4>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-xs text-muted-foreground">
-                                {item.size}
-                              </span>
-                              <span className="text-xs text-muted-foreground">/</span>
-                              <div className="flex items-center gap-1">
-                                <span
-                                  className="w-3 h-3 rounded-full border border-border"
-                                  style={{ backgroundColor: color?.hex }}
-                                />
-                                <span className="text-xs text-muted-foreground">
-                                  {color?.name}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
+                      {/* Quantity & Price */}
+                      <div className="flex items-center justify-between mt-3">
+                        <div className="flex items-center border border-border">
                           <button
-                            onClick={() => removeItem(item.product.id, item.size, item.color)}
-                            className="text-muted-foreground hover:text-foreground transition-colors"
+                            onClick={() => updateQuantity(
+                              item.product.id,
+                              item.size,
+                              item.color,
+                              item.quantity - 1
+                            )}
+                            className="h-8 w-8 flex items-center justify-center hover:bg-secondary transition-colors"
+                            disabled={item.quantity <= 1}
                           >
-                            <X className="h-4 w-4" />
+                            <Minus className="h-3 w-3" />
+                          </button>
+                          <span className="w-8 text-center text-sm">
+                            {item.quantity}
+                          </span>
+                          <button
+                            onClick={() => updateQuantity(
+                              item.product.id,
+                              item.size,
+                              item.color,
+                              item.quantity + 1
+                            )}
+                            className="h-8 w-8 flex items-center justify-center hover:bg-secondary transition-colors"
+                          >
+                            <Plus className="h-3 w-3" />
                           </button>
                         </div>
-
-                        {/* Quantity & Price */}
-                        <div className="flex items-center justify-between mt-3">
-                          <div className="flex items-center border border-border">
-                            <button
-                              onClick={() => updateQuantity(
-                                item.product.id,
-                                item.size,
-                                item.color,
-                                item.quantity - 1
-                              )}
-                              className="h-8 w-8 flex items-center justify-center hover:bg-secondary transition-colors"
-                              disabled={item.quantity <= 1}
-                            >
-                              <Minus className="h-3 w-3" />
-                            </button>
-                            <span className="w-8 text-center text-sm">
-                              {item.quantity}
-                            </span>
-                            <button
-                              onClick={() => updateQuantity(
-                                item.product.id,
-                                item.size,
-                                item.color,
-                                item.quantity + 1
-                              )}
-                              className="h-8 w-8 flex items-center justify-center hover:bg-secondary transition-colors"
-                            >
-                              <Plus className="h-3 w-3" />
-                            </button>
-                          </div>
-                          <span className="font-medium text-sm">
-                            ${(item.product.price * item.quantity).toFixed(2)}
-                          </span>
-                        </div>
+                        <span className="font-medium text-sm">
+                          {displayPrice(item.product.price * item.quantity)}
+                        </span>
                       </div>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             </ScrollArea>
 
             {/* Cart Footer */}
             <div className="border-t border-border pt-4 space-y-4">
+              {/* Checkout Error */}
+              {checkoutError && (
+                <Alert variant="destructive" className="py-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription className="text-xs">
+                    {checkoutError}
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Subtotal</span>
-                <span className="font-display text-xl">${totalPrice.toFixed(2)}</span>
+                <span className="font-display text-xl">{displayPrice(totalPrice)}</span>
               </div>
+              
               <p className="text-xs text-muted-foreground text-center">
-                Shipping calculated at checkout
+                Shipping & taxes calculated at checkout
               </p>
+
+              {/* Shopify Checkout Button */}
               <Button 
                 className="w-full h-12 font-display text-lg tracking-wider btn-animate"
-                onClick={() => {
-                  // This would connect to Medusa checkout
-                  alert('Checkout would connect to Medusa backend');
-                }}
+                onClick={handleCheckout}
+                disabled={isCheckoutLoading}
               >
-                CHECKOUT
+                {isCheckoutLoading ? (
+                  <>
+                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                    PROCESSING...
+                  </>
+                ) : (
+                  'CHECKOUT'
+                )}
               </Button>
+
+              {/* Info about payment methods */}
+              <p className="text-[10px] text-muted-foreground text-center">
+                {isShopifyConfigured() 
+                  ? 'Razorpay • UPI • Cards • COD • Delhivery Shipping'
+                  : 'Configure Shopify to enable checkout'
+                }
+              </p>
+
               <Button 
                 variant="outline" 
                 className="w-full"
