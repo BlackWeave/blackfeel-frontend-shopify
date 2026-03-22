@@ -1,22 +1,39 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Eye } from 'lucide-react';
+import { Eye, Banknote } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useCart } from '@/context/CartContext';
-import { getColorById, SIZES } from '@/data/products';
+import { formatPrice } from '@/lib/shopify';
+import { getColorById } from '@/data/products';
 
 export const ProductCard = ({ product }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [showQuickView, setShowQuickView] = useState(false);
-  const [selectedSize, setSelectedSize] = useState(product.sizes[2] || product.sizes[0]);
-  const [selectedColor, setSelectedColor] = useState(product.colors[0]);
+  const [selectedSize, setSelectedSize] = useState(product.sizes?.[2] || product.sizes?.[0] || '');
+  const [selectedColor, setSelectedColor] = useState(product.colors?.[0] || '');
   const { addItem } = useCart();
+
+  const currencyCode = product.currencyCode || 'INR';
 
   const handleQuickAdd = (e) => {
     e.preventDefault();
     e.stopPropagation();
     addItem(product, selectedSize, selectedColor);
+  };
+
+  // Get color display info (handles both mock data format and Shopify format)
+  const getColorInfo = (color) => {
+    if (typeof color === 'string') {
+      const mockColor = getColorById(color);
+      return {
+        id: color,
+        name: mockColor?.name || color,
+        hex: mockColor?.hex || color.toLowerCase(),
+      };
+    }
+    return color;
   };
 
   return (
@@ -26,14 +43,25 @@ export const ProductCard = ({ product }) => {
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <Link to={`/product/${product.id}`} className="block">
+        <Link to={`/product/${product.id || product.handle}`} className="block">
           {/* Image Container */}
           <div className="aspect-product overflow-hidden bg-secondary relative">
             <img
-              src={isHovered && product.images[1] ? product.images[1] : product.images[0]}
+              src={isHovered && product.images?.[1] ? product.images[1] : (product.images?.[0] || '/placeholder.png')}
               alt={product.name}
               className="w-full h-full object-cover transition-all duration-500 group-hover:scale-105"
             />
+            
+            {/* COD Badge */}
+            {product.codAvailable && (
+              <Badge 
+                variant="secondary" 
+                className="absolute top-2 left-2 bg-green-100 text-green-800 hover:bg-green-100 text-[10px]"
+              >
+                <Banknote className="h-3 w-3 mr-1" />
+                COD
+              </Badge>
+            )}
             
             {/* Quick View Button */}
             <button
@@ -64,28 +92,32 @@ export const ProductCard = ({ product }) => {
               <h3 className="font-medium text-sm group-hover:underline underline-offset-4 transition-all">
                 {product.name}
               </h3>
-              <span className="font-display text-lg">${product.price}</span>
+              <span className="font-display text-lg">
+                {formatPrice(product.price, currencyCode)}
+              </span>
             </div>
             
             {/* Color Options Preview */}
-            <div className="flex items-center gap-2">
-              {product.colors.slice(0, 4).map((colorId) => {
-                const color = getColorById(colorId);
-                return (
-                  <span
-                    key={colorId}
-                    className="w-4 h-4 rounded-full border border-border"
-                    style={{ backgroundColor: color?.hex }}
-                    title={color?.name}
-                  />
-                );
-              })}
-              {product.colors.length > 4 && (
-                <span className="text-xs text-muted-foreground">
-                  +{product.colors.length - 4}
-                </span>
-              )}
-            </div>
+            {product.colors?.length > 0 && (
+              <div className="flex items-center gap-2">
+                {product.colors.slice(0, 4).map((color, idx) => {
+                  const colorInfo = getColorInfo(color);
+                  return (
+                    <span
+                      key={colorInfo.id || idx}
+                      className="w-4 h-4 rounded-full border border-border"
+                      style={{ backgroundColor: colorInfo.hex }}
+                      title={colorInfo.name}
+                    />
+                  );
+                })}
+                {product.colors.length > 4 && (
+                  <span className="text-xs text-muted-foreground">
+                    +{product.colors.length - 4}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </Link>
       </div>
@@ -98,66 +130,81 @@ export const ProductCard = ({ product }) => {
           </DialogHeader>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Product Image */}
-            <div className="aspect-product bg-secondary overflow-hidden">
+            <div className="aspect-product bg-secondary overflow-hidden relative">
               <img
-                src={product.images[0]}
+                src={product.images?.[0] || '/placeholder.png'}
                 alt={product.name}
                 className="w-full h-full object-cover"
               />
+              {product.codAvailable && (
+                <Badge 
+                  variant="secondary" 
+                  className="absolute top-2 left-2 bg-green-100 text-green-800"
+                >
+                  <Banknote className="h-3 w-3 mr-1" />
+                  COD Available
+                </Badge>
+              )}
             </div>
 
             {/* Product Details */}
             <div className="flex flex-col">
               <h2 className="font-display text-2xl tracking-wider mb-1">
-                {product.name.toUpperCase()}
+                {product.name?.toUpperCase()}
               </h2>
-              <p className="font-display text-xl mb-4">${product.price}</p>
+              <p className="font-display text-xl mb-4">
+                {formatPrice(product.price, currencyCode)}
+              </p>
               <p className="text-sm text-muted-foreground mb-6 line-clamp-3">
                 {product.description}
               </p>
 
               {/* Color Selection */}
-              <div className="mb-4">
-                <span className="text-sm font-medium mb-2 block">Color</span>
-                <div className="flex gap-2">
-                  {product.colors.map((colorId) => {
-                    const color = getColorById(colorId);
-                    return (
-                      <button
-                        key={colorId}
-                        onClick={() => setSelectedColor(colorId)}
-                        className={`w-8 h-8 rounded-full border-2 transition-all ${
-                          selectedColor === colorId 
-                            ? 'border-foreground scale-110' 
-                            : 'border-transparent hover:border-muted-foreground'
-                        }`}
-                        style={{ backgroundColor: color?.hex }}
-                        title={color?.name}
-                      />
-                    );
-                  })}
+              {product.colors?.length > 0 && (
+                <div className="mb-4">
+                  <span className="text-sm font-medium mb-2 block">Color</span>
+                  <div className="flex flex-wrap gap-2">
+                    {product.colors.map((color, idx) => {
+                      const colorInfo = getColorInfo(color);
+                      return (
+                        <button
+                          key={colorInfo.id || idx}
+                          onClick={() => setSelectedColor(colorInfo.name || color)}
+                          className={`w-8 h-8 rounded-full border-2 transition-all ${
+                            selectedColor === (colorInfo.name || color)
+                              ? 'border-foreground scale-110' 
+                              : 'border-transparent hover:border-muted-foreground'
+                          }`}
+                          style={{ backgroundColor: colorInfo.hex }}
+                          title={colorInfo.name}
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Size Selection */}
-              <div className="mb-6">
-                <span className="text-sm font-medium mb-2 block">Size</span>
-                <div className="flex flex-wrap gap-2">
-                  {product.sizes.map((size) => (
-                    <button
-                      key={size}
-                      onClick={() => setSelectedSize(size)}
-                      className={`h-10 min-w-[2.5rem] px-3 border text-sm font-medium transition-colors ${
-                        selectedSize === size
-                          ? 'border-foreground bg-foreground text-background'
-                          : 'border-border hover:border-foreground'
-                      }`}
-                    >
-                      {size}
-                    </button>
-                  ))}
+              {product.sizes?.length > 0 && (
+                <div className="mb-6">
+                  <span className="text-sm font-medium mb-2 block">Size</span>
+                  <div className="flex flex-wrap gap-2">
+                    {product.sizes.map((size) => (
+                      <button
+                        key={size}
+                        onClick={() => setSelectedSize(size)}
+                        className={`h-10 min-w-[2.5rem] px-3 border text-sm font-medium transition-colors ${
+                          selectedSize === size
+                            ? 'border-foreground bg-foreground text-background'
+                            : 'border-border hover:border-foreground'
+                        }`}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Add to Cart */}
               <div className="mt-auto space-y-3">
@@ -176,7 +223,7 @@ export const ProductCard = ({ product }) => {
                   onClick={() => setShowQuickView(false)}
                   asChild
                 >
-                  <Link to={`/product/${product.id}`}>View Full Details</Link>
+                  <Link to={`/product/${product.id || product.handle}`}>View Full Details</Link>
                 </Button>
               </div>
             </div>
