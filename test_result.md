@@ -306,10 +306,7 @@ metadata:
   test_sequence: 1
 
 test_plan:
-  current_focus:
-    - "Shopify Integration - Product Page INR Formatting"
-    - "Shopify Integration - Cart INR Formatting"
-    - "Shopify Integration - Shop Page INR Formatting"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
