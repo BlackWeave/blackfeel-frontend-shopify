@@ -421,7 +421,14 @@ export default function ShopPage() {
             )}
 
             {/* Products Grid */}
-            {filteredProducts.length > 0 ? (
+            {isLoadingProducts ? (
+              <div className="flex items-center justify-center py-20">
+                <div className="text-center">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-muted-foreground">Loading products...</p>
+                </div>
+              </div>
+            ) : filteredProducts.length > 0 ? (
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
                 {filteredProducts.map((product) => (
                   <ProductCard key={product.id} product={product} />
