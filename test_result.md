@@ -255,20 +255,41 @@ frontend:
         - agent: "testing"
         - comment: "✅ Authenticated state working perfectly: Lock indicators (●) removed from VOTED DESIGNS and AI nav items, user can access protected collections without auth modal, user avatar visible in header, protected pages load correctly without authentication prompts"
 
-  - task: "Authentication - Sign Out"
+  - task: "Shopify Integration - Product Page INR Formatting"
     implemented: true
-    working: true
-    file: "/app/frontend/src/context/AuthContext.js"
+    working: "NA"
+    file: "/app/frontend/src/pages/ProductDetailPage.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
         - working: "NA"
         - agent: "testing"
-        - comment: "Need to verify clicking Sign Out in user dropdown signs user out, lock indicators return on protected items"
-        - working: true
+        - comment: "Need to test /product/basic-1 page for INR price formatting with ₹ symbol, 'Free shipping over ₹999' text, '7-day returns' text, color/size selection, and add to cart functionality with mock Shopify data"
+
+  - task: "Shopify Integration - Cart INR Formatting"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/components/layout/CartDrawer.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
         - agent: "testing"
-        - comment: "✅ Sign out functionality working perfectly: User dropdown shows Demo User name, demo@example.com email, My Account and Sign Out options, clicking Sign Out successfully signs user out, user avatar disappears, lock indicators (●) return to VOTED DESIGNS and AI nav items"
+        - comment: "Need to test cart drawer functionality with INR formatting (₹ symbol), subtotal display in INR, checkout button text 'CHECKOUT', and 'Shipping & taxes calculated at checkout' text"
+
+  - task: "Shopify Integration - Shop Page INR Formatting"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/src/pages/ShopPage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "Need to test /shop page for product loading, INR price formatting with ₹ symbol, and filtering functionality with mock Shopify data"
 
 metadata:
   created_by: "testing_agent"
