@@ -257,39 +257,48 @@ frontend:
 
   - task: "Shopify Integration - Product Page INR Formatting"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/frontend/src/pages/ProductDetailPage.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: "NA"
         - agent: "testing"
         - comment: "Need to test /product/basic-1 page for INR price formatting with ₹ symbol, 'Free shipping over ₹999' text, '7-day returns' text, color/size selection, and add to cart functionality with mock Shopify data"
+        - working: true
+        - agent: "testing"
+        - comment: "✅ Product page INR formatting working perfectly: ₹39 price displayed correctly with INR symbol, 'Free shipping over ₹999' text present, '7-day returns' text present, color selection works (black color with checkmark), size selection works (M size highlighted), add to cart functionality works with proper validation. Mock Shopify data integration working correctly."
 
   - task: "Shopify Integration - Cart INR Formatting"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/frontend/src/components/layout/CartDrawer.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: "NA"
         - agent: "testing"
         - comment: "Need to test cart drawer functionality with INR formatting (₹ symbol), subtotal display in INR, checkout button text 'CHECKOUT', and 'Shipping & taxes calculated at checkout' text"
+        - working: true
+        - agent: "testing"
+        - comment: "✅ Cart INR formatting working perfectly: Cart drawer opens automatically after adding item, shows 'YOUR CART (1)' title, displays 'Essential Crew' product with ₹39 pricing (found 5 instances of ₹39 in cart), subtotal shows ₹39 correctly, 'CHECKOUT' button present, 'Shipping & taxes calculated at checkout' text displayed. All INR formatting working correctly with mock data."
 
   - task: "Shopify Integration - Shop Page INR Formatting"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/frontend/src/pages/ShopPage.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         - working: "NA"
         - agent: "testing"
         - comment: "Need to test /shop page for product loading, INR price formatting with ₹ symbol, and filtering functionality with mock Shopify data"
+        - working: true
+        - agent: "testing"
+        - comment: "✅ Shop page INR formatting working perfectly: 13 products loaded successfully, 3 products showing ₹39 price with correct INR symbol, category filtering works (Basic filter updates URL to category=basic), sort functionality present, all products display with proper INR formatting. Mock Shopify data integration working correctly."
 
 metadata:
   created_by: "testing_agent"
