@@ -85,6 +85,22 @@ export default function ProductDetailPage() {
       .slice(0, 3);
   }, [product]);
 
+  // Get available variant for selected options
+  const selectedVariant = useMemo(() => {
+    if (!product?.variants) return null;
+    return product.variants.find(v => {
+      const sizeMatch = !selectedSize || v.options?.size === selectedSize;
+      const colorMatch = !selectedColor || v.options?.color === selectedColor || v.options?.colour === selectedColor;
+      return sizeMatch && colorMatch;
+    });
+  }, [product, selectedSize, selectedColor]);
+
+  // Derived values
+  const category = product ? CATEGORIES.find(c => c.id === product.category) : null;
+  const currencyCode = product?.currencyCode || 'INR';
+  const isVariantAvailable = selectedVariant?.available !== false;
+  const variantPrice = selectedVariant?.price || product?.price || 0;
+
   // Loading state
   if (isLoading) {
     return (
@@ -111,22 +127,6 @@ export default function ProductDetailPage() {
       </div>
     );
   }
-
-  const category = CATEGORIES.find(c => c.id === product.category);
-  const currencyCode = product.currencyCode || 'INR';
-
-  // Get available variant for selected options
-  const selectedVariant = useMemo(() => {
-    if (!product.variants) return null;
-    return product.variants.find(v => {
-      const sizeMatch = !selectedSize || v.options?.size === selectedSize;
-      const colorMatch = !selectedColor || v.options?.color === selectedColor || v.options?.colour === selectedColor;
-      return sizeMatch && colorMatch;
-    });
-  }, [product.variants, selectedSize, selectedColor]);
-
-  const isVariantAvailable = selectedVariant?.available !== false;
-  const variantPrice = selectedVariant?.price || product.price;
 
   const handleAddToCart = () => {
     if (!selectedSize && product.sizes?.length > 0) {
