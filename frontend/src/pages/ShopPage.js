@@ -128,11 +128,51 @@ export default function ShopPage() {
   const { isAuthenticated, requestAuth } = useAuth();
   const navigate = useNavigate();
   
+  // State for Shopify products
+  const [shopifyProducts, setShopifyProducts] = useState([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  
   // Get filter values from URL - memoized to prevent unnecessary re-renders
   const selectedCategory = searchParams.get('category') || '';
   const colorsParam = searchParams.get('colors');
   const sizesParam = searchParams.get('sizes');
   const sortBy = searchParams.get('sort') || 'featured';
+  
+  // Fetch products from Shopify or use mock data
+  useEffect(() => {
+    async function loadProducts() {
+      setIsLoadingProducts(true);
+      try {
+        if (isShopifyConfigured()) {
+          let products;
+          if (selectedCategory) {
+            // Fetch products by collection/category
+            products = await fetchProductsByCollection(selectedCategory);
+          } else {
+            // Fetch all products
+            products = await fetchProducts();
+          }
+          if (products && products.length > 0) {
+            setShopifyProducts(products);
+          } else {
+            // Fallback to mock data
+            setShopifyProducts(PRODUCTS);
+          }
+        } else {
+          // Use mock data when Shopify not configured
+          setShopifyProducts(PRODUCTS);
+        }
+      } catch (error) {
+        console.error('Error loading products:', error);
+        // Fallback to mock data on error
+        setShopifyProducts(PRODUCTS);
+      } finally {
+        setIsLoadingProducts(false);
+      }
+    }
+    
+    loadProducts();
+  }, [selectedCategory]);
   
   // Check if current category requires auth
   useEffect(() => {
@@ -153,27 +193,32 @@ export default function ShopPage() {
     [sizesParam]
   );
 
-  // Filter products
+  // Filter products (use Shopify products or mock)
   const filteredProducts = useMemo(() => {
-    let result = [...PRODUCTS];
+    let result = [...shopifyProducts];
 
-    // Filter by category
-    if (selectedCategory) {
+    // Filter by category (already filtered from Shopify, but apply for mock data)
+    if (selectedCategory && !isShopifyConfigured()) {
       result = result.filter(p => p.category === selectedCategory);
     }
 
     // Filter by colors
     if (selectedColors.length > 0) {
-      result = result.filter(p => 
-        p.colors.some(c => selectedColors.includes(c))
-      );
+      result = result.filter(p => {
+        if (!p.colors) return false;
+        return p.colors.some(c => {
+          const colorName = typeof c === 'string' ? c.toLowerCase() : c?.name?.toLowerCase();
+          return selectedColors.some(sc => sc.toLowerCase() === colorName);
+        });
+      });
     }
 
     // Filter by sizes
     if (selectedSizes.length > 0) {
-      result = result.filter(p => 
-        p.sizes.some(s => selectedSizes.includes(s))
-      );
+      result = result.filter(p => {
+        if (!p.sizes) return false;
+        return p.sizes.some(s => selectedSizes.includes(s));
+      });
     }
 
     // Sort
@@ -185,7 +230,7 @@ export default function ShopPage() {
         result.sort((a, b) => b.price - a.price);
         break;
       case 'name':
-        result.sort((a, b) => a.name.localeCompare(b.name));
+        result.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         break;
       default:
         // Keep original order for 'featured'
@@ -193,7 +238,7 @@ export default function ShopPage() {
     }
 
     return result;
-  }, [selectedCategory, selectedColors, selectedSizes, sortBy]);
+  }, [shopifyProducts, selectedCategory, selectedColors, selectedSizes, sortBy]);
 
   // Update URL params
   const updateFilters = (key, value) => {
