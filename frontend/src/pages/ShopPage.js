@@ -1,12 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
-import { Filter, X, Lock } from 'lucide-react';
+import { Filter, X, Lock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { ProductCard } from '@/components/product/ProductCard';
 import { useAuth, PROTECTED_CATEGORIES } from '@/context/AuthContext';
+import { fetchProducts, fetchProductsByCollection, isShopifyConfigured } from '@/lib/shopify';
 import { PRODUCTS, CATEGORIES, COLORS, SIZES } from '@/data/products';
 
 // Filter Content Component (moved outside to prevent re-render issues)
