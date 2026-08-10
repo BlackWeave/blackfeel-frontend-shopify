@@ -7,8 +7,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { useCart } from '@/context/CartContext';
 import { SizeGuide } from '@/components/product/SizeGuide';
 import { ProductCard } from '@/components/product/ProductCard';
-import { fetchProductByHandle, formatPrice, isShopifyConfigured, getVariantId } from '@/lib/shopify';
-import { PRODUCTS } from '@/data/products';
+import { fetchProductByHandle, formatPrice, isShopifyConfigured } from '@/lib/shopify';
 import { getColorById, CATEGORIES } from '@/data/site';
 
 export default function ProductDetailPage() {
@@ -29,7 +28,6 @@ export default function ProductDetailPage() {
   const [isAdded, setIsAdded] = useState(false);
 
   // Fetch product from Shopify.
-  // Fall back to the mock product only when Shopify is not configured.
   useEffect(() => {
     let cancelled = false;
     async function loadProduct() {
@@ -37,22 +35,16 @@ export default function ProductDetailPage() {
       setError(null);
 
       try {
-        if (isShopifyConfigured()) {
-          const product = await fetchProductByHandle(handle);
-          if (cancelled) return;
-          if (product) {
-            setShopifyProduct(product);
-          } else {
-            setError('Product not found');
-          }
+        if (!isShopifyConfigured()) {
+          if (!cancelled) setError('Shopify is not configured');
+          return;
+        }
+        const product = await fetchProductByHandle(handle);
+        if (cancelled) return;
+        if (product) {
+          setShopifyProduct(product);
         } else {
-          // Mock fallback for local dev before credentials are wired up.
-          const mock = PRODUCTS.find((p) => p.id === handle);
-          if (mock) {
-            setShopifyProduct(mock);
-          } else {
-            setError('Product not found');
-          }
+          setError('Product not found');
         }
       } catch (err) {
         console.error('Error loading product:', err);
@@ -72,14 +64,11 @@ export default function ProductDetailPage() {
   // Use Shopify product or mock product
   const product = shopifyProduct;
 
-  // Get related products (same category, different product).
-  // Without category on Shopify data, fall back to the closest collection.
-  const relatedProducts = useMemo(() => {
-    if (!product) return [];
-    return PRODUCTS
-      .filter((p) => p.category === product.category && p.id !== product.id)
-      .slice(0, 3);
-  }, [product]);
+  // Related products: empty by default. A future iteration can populate
+  // this by fetching products that share the current product's productType
+  // or collection. The detail page already shows the full product + variant
+  // info, so omitting related items is a safe fallback.
+  const relatedProducts = useMemo(() => [], []);
 
   // Selected variant: find by current option selections.
   const selectedVariant = useMemo(() => {

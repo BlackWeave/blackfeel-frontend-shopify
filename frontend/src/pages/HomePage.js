@@ -6,17 +6,13 @@ import { ProductCard } from '@/components/product/ProductCard';
 import { useAuth, PROTECTED_CATEGORIES } from '@/context/AuthContext';
 import { fetchProducts, isShopifyConfigured } from '@/lib/shopify';
 import { CATEGORIES, HERO_IMAGE, LOGO_URL } from '@/data/site';
-import { PRODUCTS } from '@/data/products';
 
 export default function HomePage() {
   const { isAuthenticated, requestAuth } = useAuth();
   const navigate = useNavigate();
 
-  // Featured products are loaded from Shopify when configured, otherwise
-  // fall back to the first mock product per category.
-  const [featuredProducts, setFeaturedProducts] = useState(() =>
-    CATEGORIES.map((cat) => PRODUCTS.find((p) => p.category === cat.id)).filter(Boolean)
-  );
+  // Featured products are loaded from Shopify when configured.
+  const [featuredProducts, setFeaturedProducts] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -223,7 +219,7 @@ export default function HomePage() {
             {/* Image */}
             <div className="aspect-square lg:aspect-[4/5] bg-secondary overflow-hidden">
               <img
-                src={featuredProducts[0]?.images?.[0] || PRODUCTS[0].images[0]}
+                src={featuredProducts[0]?.images?.[0] || '/placeholder.png'}
                 alt="Quality craftsmanship"
                 className="w-full h-full object-cover"
               />

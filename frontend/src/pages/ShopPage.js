@@ -9,7 +9,6 @@ import { ProductCard } from '@/components/product/ProductCard';
 import { useAuth, PROTECTED_CATEGORIES } from '@/context/AuthContext';
 import { fetchProducts, fetchProductsByCollection, isShopifyConfigured } from '@/lib/shopify';
 import { CATEGORIES, COLORS, SIZES } from '@/data/site';
-import { PRODUCTS } from '@/data/products';
 
 // Filter Content Component (moved outside to prevent re-render issues)
 const FilterContent = ({ 
@@ -132,6 +131,7 @@ export default function ShopPage() {
   // State for Shopify products
   const [shopifyProducts, setShopifyProducts] = useState([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   
   // Get filter values from URL - memoized to prevent unnecessary re-renders
   const selectedCategory = searchParams.get('category') || '';
@@ -139,40 +139,38 @@ export default function ShopPage() {
   const sizesParam = searchParams.get('sizes');
   const sortBy = searchParams.get('sort') || 'featured';
   
-  // Fetch products from Shopify or use mock data
+  // Fetch products from Shopify.
   useEffect(() => {
+    let cancelled = false;
     async function loadProducts() {
       setIsLoadingProducts(true);
+      setLoadError(null);
       try {
-        if (isShopifyConfigured()) {
-          let products;
-          if (selectedCategory) {
-            // Fetch products by collection/category
-            products = await fetchProductsByCollection(selectedCategory);
-          } else {
-            // Fetch all products
-            products = await fetchProducts();
-          }
-          if (products && products.length > 0) {
-            setShopifyProducts(products);
-          } else {
-            // Fallback to mock data
-            setShopifyProducts(PRODUCTS);
-          }
-        } else {
-          // Use mock data when Shopify not configured
-          setShopifyProducts(PRODUCTS);
+        if (!isShopifyConfigured()) {
+          if (!cancelled) setShopifyProducts([]);
+          return;
+        }
+        const products = selectedCategory
+          ? await fetchProductsByCollection(selectedCategory)
+          : await fetchProducts();
+        if (!cancelled) {
+          setShopifyProducts(products || []);
         }
       } catch (error) {
         console.error('Error loading products:', error);
-        // Fallback to mock data on error
-        setShopifyProducts(PRODUCTS);
+        if (!cancelled) {
+          setLoadError(error.message || 'Could not load products');
+          setShopifyProducts([]);
+        }
       } finally {
-        setIsLoadingProducts(false);
+        if (!cancelled) setIsLoadingProducts(false);
       }
     }
-    
+
     loadProducts();
+    return () => {
+      cancelled = true;
+    };
   }, [selectedCategory]);
   
   // Check if current category requires auth
@@ -194,14 +192,9 @@ export default function ShopPage() {
     [sizesParam]
   );
 
-  // Filter products (use Shopify products or mock)
+  // Filter products (Shopify data only).
   const filteredProducts = useMemo(() => {
     let result = [...shopifyProducts];
-
-    // Filter by category (already filtered from Shopify, but apply for mock data)
-    if (selectedCategory && !isShopifyConfigured()) {
-      result = result.filter(p => p.category === selectedCategory);
-    }
 
     // Filter by colors
     if (selectedColors.length > 0) {
@@ -239,7 +232,7 @@ export default function ShopPage() {
     }
 
     return result;
-  }, [shopifyProducts, selectedCategory, selectedColors, selectedSizes, sortBy]);
+  }, [shopifyProducts, selectedColors, selectedSizes, sortBy]);
 
   // Update URL params
   const updateFilters = (key, value) => {
@@ -428,6 +421,20 @@ export default function ShopPage() {
                   <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
                   <p className="text-muted-foreground">Loading products...</p>
                 </div>
+              </div>
+            ) : loadError ? (
+              <div className="text-center py-20">
+                <p className="text-destructive mb-4">{loadError}</p>
+                <Button variant="outline" onClick={() => window.location.reload()}>
+                  Retry
+                </Button>
+              </div>
+            ) : !isShopifyConfigured() ? (
+              <div className="text-center py-20">
+                <p className="text-muted-foreground mb-4">
+                  Shopify is not configured. Add the REACT_APP_SHOPIFY_* env
+                  vars to load products.
+                </p>
               </div>
             ) : filteredProducts.length > 0 ? (
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">

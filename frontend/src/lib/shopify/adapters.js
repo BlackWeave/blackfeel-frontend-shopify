@@ -65,24 +65,27 @@ export function mapShopifyProduct(product) {
 /**
  * Returns the first variant whose `selectedOptions` cover every
  * `{ name: value }` pair in `selections` (case-insensitive on the option
- * name). Returns `undefined` if no match is found.
+ * name and value). Returns `undefined` if no match is found.
  */
 export function findVariant(product, selections = {}) {
   if (!product || !Array.isArray(product.variants?.nodes)) return undefined;
   return product.variants.nodes.find((variant) =>
-    Object.entries(selections).every(([name, value]) =>
-      (variant.selectedOptions || []).some(
+    Object.entries(selections).every(([name, value]) => {
+      const targetName = String(name).toLowerCase();
+      const targetValue = String(value).toLowerCase();
+      return (variant.selectedOptions || []).some(
         (opt) =>
-          String(opt.name).toLowerCase() === String(name).toLowerCase() &&
-          opt.value === value,
-      ),
-    ),
+          String(opt.name).toLowerCase() === targetName &&
+          String(opt.value).toLowerCase() === targetValue,
+      );
+    }),
   );
 }
 
 /**
  * Locates a variant matching the provided size and/or color and returns
  * its global id. Returns `null` when the product has no matching variant.
+ * Option-name and value matching is case-insensitive.
  */
 export function getVariantId(product, selectedSize, selectedColor) {
   if (!product) return null;
@@ -93,14 +96,14 @@ export function getVariantId(product, selectedSize, selectedColor) {
       ? opts.some(
           (o) =>
             String(o.name).toLowerCase() === 'size' &&
-            o.value === selectedSize,
+            String(o.value).toLowerCase() === String(selectedSize).toLowerCase(),
         )
       : true;
     const colorOk = selectedColor
       ? opts.some(
           (o) =>
             String(o.name).toLowerCase() === 'color' &&
-            o.value === selectedColor,
+            String(o.value).toLowerCase() === String(selectedColor).toLowerCase(),
         )
       : true;
     if (sizeOk && colorOk) {
