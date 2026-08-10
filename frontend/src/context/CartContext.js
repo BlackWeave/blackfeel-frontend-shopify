@@ -1,5 +1,12 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { createCheckout, getVariantId, isShopifyConfigured } from '@/lib/shopify';
+// TODO(commit-4): replace this entire file with the Shopifty Cart API flow.
+// The legacy Checkout API is deprecated; use CartContext.addVariant() and
+// CartContext.openCheckout() instead. For now we keep the deprecated client
+// as the implementation so the existing UI continues to work.
+import { createCheckout as _deprecatedCreateCheckout } from '@/lib/shopify.deprecated';
+import { getVariantId, isShopifyConfigured } from '@/lib/shopify';
+
+const createCheckout = _deprecatedCreateCheckout;
 
 const CartContext = createContext(undefined);
 
