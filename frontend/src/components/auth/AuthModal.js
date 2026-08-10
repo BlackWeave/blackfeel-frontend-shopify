@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/context/AuthContext';
-import { LOGO_URL } from '@/data/products';
+import { LOGO_URL } from '@/data/site';
 import { Loader2, Lock, Sparkles, Vote } from 'lucide-react';
 
 export const AuthModal = () => {

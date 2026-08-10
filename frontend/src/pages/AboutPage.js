@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { LOGO_URL, PRODUCT_IMAGES } from '@/data/products';
+import { LOGO_URL, PRODUCT_IMAGES } from '@/data/site';
 
 export default function AboutPage() {
   return (

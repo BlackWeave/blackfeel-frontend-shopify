@@ -9,7 +9,8 @@ import { useCart } from '@/context/CartContext';
 import { SizeGuide } from '@/components/product/SizeGuide';
 import { ProductCard } from '@/components/product/ProductCard';
 import { fetchProductByHandle, formatPrice, isShopifyConfigured, getVariantId } from '@/lib/shopify';
-import { getProductById, getColorById, PRODUCTS, CATEGORIES } from '@/data/products';
+import { getProductById, PRODUCTS } from '@/data/products';
+import { getColorById, CATEGORIES } from '@/data/site';
 
 export default function ProductDetailPage() {
   const { productId } = useParams();

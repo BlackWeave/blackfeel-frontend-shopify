@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useCart } from '@/context/CartContext';
 import { formatPrice } from '@/lib/shopify';
-import { getColorById } from '@/data/products';
+import { getColorById } from '@/data/site';
 
 export const ProductCard = ({ product }) => {
   const [isHovered, setIsHovered] = useState(false);

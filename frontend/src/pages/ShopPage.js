@@ -8,7 +8,8 @@ import { Separator } from '@/components/ui/separator';
 import { ProductCard } from '@/components/product/ProductCard';
 import { useAuth, PROTECTED_CATEGORIES } from '@/context/AuthContext';
 import { fetchProducts, fetchProductsByCollection, isShopifyConfigured } from '@/lib/shopify';
-import { PRODUCTS, CATEGORIES, COLORS, SIZES } from '@/data/products';
+import { CATEGORIES, COLORS, SIZES } from '@/data/site';
+import { PRODUCTS } from '@/data/products';
 
 // Filter Content Component (moved outside to prevent re-render issues)
 const FilterContent = ({ 
