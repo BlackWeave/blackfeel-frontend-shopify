@@ -13,14 +13,18 @@ export const ProductCard = ({ product }) => {
   const [showQuickView, setShowQuickView] = useState(false);
   const [selectedSize, setSelectedSize] = useState(product.sizes?.[2] || product.sizes?.[0] || '');
   const [selectedColor, setSelectedColor] = useState(product.colors?.[0] || '');
-  const { addItem } = useCart();
+  const { addVariant } = useCart();
 
   const currencyCode = product.currencyCode || 'INR';
 
-  const handleQuickAdd = (e) => {
+  const handleQuickAdd = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    addItem(product, selectedSize, selectedColor);
+    try {
+      await addVariant(product, selectedSize, selectedColor);
+    } catch (err) {
+      console.error('Quick-add failed:', err);
+    }
   };
 
   // Get color display info (handles both mock data format and Shopify format)
@@ -208,10 +212,14 @@ export const ProductCard = ({ product }) => {
 
               {/* Add to Cart */}
               <div className="mt-auto space-y-3">
-                <Button 
+                <Button
                   className="w-full h-12 font-display text-lg tracking-wider btn-animate"
-                  onClick={() => {
-                    addItem(product, selectedSize, selectedColor);
+                  onClick={async () => {
+                    try {
+                      await addVariant(product, selectedSize, selectedColor);
+                    } catch (err) {
+                      console.error('Quick-add failed:', err);
+                    }
                     setShowQuickView(false);
                   }}
                 >

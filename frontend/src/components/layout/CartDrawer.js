@@ -9,28 +9,38 @@ import { useCart } from '@/context/CartContext';
 import { formatPrice, isShopifyConfigured } from '@/lib/shopify';
 
 export const CartDrawer = () => {
-  const { 
-    items, 
-    removeItem, 
-    updateQuantity, 
-    totalPrice,
+  const {
+    lines,
+    totalItems,
+    subtotal,
+    total,
     currencyCode,
-    isCartOpen, 
+    isCartOpen,
     setIsCartOpen,
-    isCheckoutLoading,
-    checkoutError,
-    initiateCheckout,
+    isLoading,
+    error,
+    removeLine,
+    updateLineQuantity,
+    openCheckout,
   } = useCart();
 
-  const handleCheckout = async () => {
-    // Initiate Shopify checkout - redirects to Shopify checkout page
-    // where Razorpay payment gateway and Delhivery shipping are configured
-    await initiateCheckout();
+  const displayPrice = (amount) => formatPrice(amount ?? 0, currencyCode);
+
+  const lineImage = (line) =>
+    line.merchandise?.image?.url ||
+    line.merchandise?.product?.featuredImage?.url ||
+    '/placeholder.png';
+
+  const lineTitle = (line) =>
+    line.merchandise?.product?.title || 'Item';
+
+  const lineVariant = (line) => {
+    const opts = line.merchandise?.selectedOptions || [];
+    return opts.map((o) => o.value).join(' / ');
   };
 
-  // Format price based on currency (INR for Indian market)
-  const displayPrice = (amount) => {
-    return formatPrice(amount, currencyCode);
+  const handleCheckout = () => {
+    openCheckout();
   };
 
   return (
@@ -38,11 +48,11 @@ export const CartDrawer = () => {
       <SheetContent className="w-full sm:max-w-md flex flex-col">
         <SheetHeader className="pb-4 border-b border-border">
           <SheetTitle className="font-display text-xl tracking-wider">
-            YOUR CART ({items.length})
+            YOUR CART ({totalItems})
           </SheetTitle>
         </SheetHeader>
 
-        {items.length === 0 ? (
+        {lines.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-6 py-12">
             <div className="h-20 w-20 rounded-full bg-secondary flex items-center justify-center">
               <ShoppingBag className="h-8 w-8 text-muted-foreground" />
@@ -53,7 +63,7 @@ export const CartDrawer = () => {
                 Add something to make it happy
               </p>
             </div>
-            <Button 
+            <Button
               onClick={() => setIsCartOpen(false)}
               asChild
               className="btn-animate"
@@ -65,16 +75,16 @@ export const CartDrawer = () => {
           <>
             <ScrollArea className="flex-1 py-4">
               <div className="space-y-4">
-                {items.map((item) => (
-                  <div 
-                    key={`${item.product.id}-${item.size}-${item.color}`}
+                {lines.map((line) => (
+                  <div
+                    key={line.id}
                     className="flex gap-4 p-3 bg-secondary/30 rounded-sm"
                   >
                     {/* Product Image */}
                     <div className="w-20 h-24 bg-secondary overflow-hidden flex-shrink-0">
                       <img
-                        src={item.product.images?.[0] || '/placeholder.png'}
-                        alt={item.product.name}
+                        src={lineImage(line)}
+                        alt={lineTitle(line)}
                         className="w-full h-full object-cover"
                       />
                     </div>
@@ -84,35 +94,18 @@ export const CartDrawer = () => {
                       <div className="flex justify-between items-start">
                         <div>
                           <h4 className="font-medium text-sm truncate pr-2">
-                            {item.product.name}
+                            {lineTitle(line)}
                           </h4>
-                          <div className="flex items-center gap-2 mt-1">
-                            {item.size && (
-                              <>
-                                <span className="text-xs text-muted-foreground">
-                                  {item.size}
-                                </span>
-                                {item.color && (
-                                  <span className="text-xs text-muted-foreground">/</span>
-                                )}
-                              </>
-                            )}
-                            {item.color && (
-                              <span className="text-xs text-muted-foreground">
-                                {item.color}
-                              </span>
-                            )}
-                          </div>
-                          {/* COD Badge if available */}
-                          {item.product.codAvailable && (
-                            <span className="inline-block mt-1 text-[10px] bg-green-100 text-green-800 px-1.5 py-0.5 rounded">
-                              COD Available
-                            </span>
+                          {lineVariant(line) && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {lineVariant(line)}
+                            </p>
                           )}
                         </div>
                         <button
-                          onClick={() => removeItem(item.product.id, item.size, item.color)}
+                          onClick={() => removeLine(line.id)}
                           className="text-muted-foreground hover:text-foreground transition-colors"
+                          aria-label="Remove item"
                         >
                           <X className="h-4 w-4" />
                         </button>
@@ -122,34 +115,29 @@ export const CartDrawer = () => {
                       <div className="flex items-center justify-between mt-3">
                         <div className="flex items-center border border-border">
                           <button
-                            onClick={() => updateQuantity(
-                              item.product.id,
-                              item.size,
-                              item.color,
-                              item.quantity - 1
-                            )}
+                            onClick={() =>
+                              updateLineQuantity(line.id, line.quantity - 1)
+                            }
                             className="h-8 w-8 flex items-center justify-center hover:bg-secondary transition-colors"
-                            disabled={item.quantity <= 1}
+                            disabled={line.quantity <= 1 || isLoading}
                           >
                             <Minus className="h-3 w-3" />
                           </button>
                           <span className="w-8 text-center text-sm">
-                            {item.quantity}
+                            {line.quantity}
                           </span>
                           <button
-                            onClick={() => updateQuantity(
-                              item.product.id,
-                              item.size,
-                              item.color,
-                              item.quantity + 1
-                            )}
+                            onClick={() =>
+                              updateLineQuantity(line.id, line.quantity + 1)
+                            }
                             className="h-8 w-8 flex items-center justify-center hover:bg-secondary transition-colors"
+                            disabled={isLoading}
                           >
                             <Plus className="h-3 w-3" />
                           </button>
                         </div>
                         <span className="font-medium text-sm">
-                          {displayPrice(item.product.price * item.quantity)}
+                          {displayPrice(line.cost?.totalAmount?.amount)}
                         </span>
                       </div>
                     </div>
@@ -160,32 +148,32 @@ export const CartDrawer = () => {
 
             {/* Cart Footer */}
             <div className="border-t border-border pt-4 space-y-4">
-              {/* Checkout Error */}
-              {checkoutError && (
+              {error && (
                 <Alert variant="destructive" className="py-2">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription className="text-xs">
-                    {checkoutError}
+                    {error}
                   </AlertDescription>
                 </Alert>
               )}
 
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Subtotal</span>
-                <span className="font-display text-xl">{displayPrice(totalPrice)}</span>
+                <span className="font-display text-xl">
+                  {displayPrice(subtotal)}
+                </span>
               </div>
-              
+
               <p className="text-xs text-muted-foreground text-center">
                 Shipping & taxes calculated at checkout
               </p>
 
-              {/* Shopify Checkout Button */}
-              <Button 
+              <Button
                 className="w-full h-12 font-display text-lg tracking-wider btn-animate"
                 onClick={handleCheckout}
-                disabled={isCheckoutLoading}
+                disabled={isLoading || !checkoutUrl}
               >
-                {isCheckoutLoading ? (
+                {isLoading ? (
                   <>
                     <Loader2 className="h-5 w-5 mr-2 animate-spin" />
                     PROCESSING...
@@ -195,16 +183,14 @@ export const CartDrawer = () => {
                 )}
               </Button>
 
-              {/* Info about payment methods */}
               <p className="text-[10px] text-muted-foreground text-center">
-                {isShopifyConfigured() 
+                {isShopifyConfigured()
                   ? 'Razorpay • UPI • Cards • COD • Delhivery Shipping'
-                  : 'Configure Shopify to enable checkout'
-                }
+                  : 'Configure Shopify to enable checkout'}
               </p>
 
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full"
                 onClick={() => setIsCartOpen(false)}
                 asChild

@@ -14,7 +14,7 @@ import { getColorById, CATEGORIES } from '@/data/site';
 export default function ProductDetailPage() {
   // Route param renamed from productId to handle in Commit 3 (see App.js).
   const { handle } = useParams();
-  const { addItem } = useCart();
+  const { addVariant } = useCart();
 
   // State for Shopify product data
   const [shopifyProduct, setShopifyProduct] = useState(null);
@@ -164,7 +164,7 @@ export default function ProductDetailPage() {
     );
   }
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (!selectedSize && product.sizes?.length > 0) {
       alert('Please select a size');
       return;
@@ -174,11 +174,17 @@ export default function ProductDetailPage() {
       return;
     }
 
-    // Resolve the variant id. product.id from the adapter is the Shopify
-    // Product gid (or mock id), and addItem uses getVariantId internally.
-    addItem(product, selectedSize, selectedColor, quantity);
-    setIsAdded(true);
-    setTimeout(() => setIsAdded(false), 2000);
+    try {
+      // addVariant resolves the ProductVariant id via getVariantId and
+      // drives the Cart API (creates a cart on first add, increments the
+      // existing line on subsequent adds of the same variant).
+      await addVariant(product, selectedSize, selectedColor, quantity);
+      setIsAdded(true);
+      setTimeout(() => setIsAdded(false), 2000);
+    } catch (err) {
+      console.error('Add to cart failed:', err);
+      alert(err.message || 'Could not add to cart');
+    }
   };
 
   const nextImage = () => {

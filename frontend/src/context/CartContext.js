@@ -1,249 +1,290 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-// TODO(commit-4): replace this entire file with the Shopifty Cart API flow.
-// The legacy Checkout API is deprecated; use CartContext.addVariant() and
-// CartContext.openCheckout() instead. For now we keep the deprecated client
-// as the implementation so the existing UI continues to work.
-import { createCheckout as _deprecatedCreateCheckout } from '@/lib/shopify.deprecated';
-import { getVariantId, isShopifyConfigured } from '@/lib/shopify';
-
-const createCheckout = _deprecatedCreateCheckout;
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+} from 'react';
+import {
+  createCart,
+  fetchCart,
+  addCartLines,
+  updateCartLines,
+  removeCartLines,
+  isShopifyConfigured,
+  getVariantId,
+} from '@/lib/shopify';
 
 const CartContext = createContext(undefined);
 
-// Storage key for cart persistence
-const CART_STORAGE_KEY = 'blackfeel_cart';
-const CHECKOUT_STORAGE_KEY = 'blackfeel_checkout';
+// localStorage key for the persisted Shopify cart id. Replaces the legacy
+// blackfeel_cart / blackfeel_checkout keys the previous client used.
+const CART_ID_STORAGE_KEY = 'blackfeel_shopify_cart_id';
 
 export const CartProvider = ({ children }) => {
-  const [items, setItems] = useState([]);
+  const [cart, setCart] = useState(null);
+  const [cartId, setCartId] = useState(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [checkoutId, setCheckoutId] = useState(null);
-  const [checkoutUrl, setCheckoutUrl] = useState(null);
-  const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
-  const [checkoutError, setCheckoutError] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Load cart from localStorage on mount
+  // Prevent duplicate submissions while a mutation is in flight.
+  const inFlight = useRef(false);
+  // Ref to the latest removeLine callback so updateLineQuantity can call it
+  // without depending on its identity (avoids exhaustive-deps warnings).
+  const removeLineRef = useRef(null);
   useEffect(() => {
     try {
-      const savedCart = localStorage.getItem(CART_STORAGE_KEY);
-      const savedCheckout = localStorage.getItem(CHECKOUT_STORAGE_KEY);
-      
-      if (savedCart) {
-        setItems(JSON.parse(savedCart));
-      }
-      if (savedCheckout) {
-        const checkout = JSON.parse(savedCheckout);
-        setCheckoutId(checkout.id);
-        setCheckoutUrl(checkout.webUrl);
+      const savedId = localStorage.getItem(CART_ID_STORAGE_KEY);
+      if (savedId) {
+        setCartId(savedId);
       }
     } catch (e) {
-      console.error('Error loading cart from storage:', e);
+      console.error('Error reading cart id from storage:', e);
     }
   }, []);
 
-  // Save cart to localStorage when items change
   useEffect(() => {
     try {
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
-    } catch (e) {
-      console.error('Error saving cart to storage:', e);
-    }
-  }, [items]);
-
-  /**
-   * Add item to cart
-   * For Shopify integration, we need the variantId for checkout
-   */
-  const addItem = useCallback((product, size, color, quantity = 1) => {
-    // Get the variant ID for Shopify cart operations
-    const variantId = getVariantId(product, size, color);
-    
-    setItems(prevItems => {
-      const existingItemIndex = prevItems.findIndex(
-        item => item.product.id === product.id && item.size === size && item.color === color
-      );
-
-      if (existingItemIndex > -1) {
-        const updatedItems = [...prevItems];
-        updatedItems[existingItemIndex].quantity += quantity;
-        return updatedItems;
+      if (cartId) {
+        localStorage.setItem(CART_ID_STORAGE_KEY, cartId);
+      } else {
+        localStorage.removeItem(CART_ID_STORAGE_KEY);
       }
-
-      return [...prevItems, { 
-        product, 
-        size, 
-        color, 
-        quantity,
-        variantId, // Store variant ID for Shopify checkout
-      }];
-    });
-    
-    // Clear existing checkout when cart changes (will create new one at checkout)
-    setCheckoutId(null);
-    setCheckoutUrl(null);
-    localStorage.removeItem(CHECKOUT_STORAGE_KEY);
-    
-    setIsCartOpen(true);
-  }, []);
-
-  /**
-   * Remove item from cart
-   */
-  const removeItem = useCallback((productId, size, color) => {
-    setItems(prevItems =>
-      prevItems.filter(
-        item => !(item.product.id === productId && item.size === size && item.color === color)
-      )
-    );
-    
-    // Clear checkout when cart changes
-    setCheckoutId(null);
-    setCheckoutUrl(null);
-    localStorage.removeItem(CHECKOUT_STORAGE_KEY);
-  }, []);
-
-  /**
-   * Update item quantity
-   */
-  const updateQuantity = useCallback((productId, size, color, quantity) => {
-    if (quantity < 1) return;
-    
-    setItems(prevItems =>
-      prevItems.map(item =>
-        item.product.id === productId && item.size === size && item.color === color
-          ? { ...item, quantity }
-          : item
-      )
-    );
-    
-    // Clear checkout when cart changes
-    setCheckoutId(null);
-    setCheckoutUrl(null);
-    localStorage.removeItem(CHECKOUT_STORAGE_KEY);
-  }, []);
-
-  /**
-   * Clear entire cart
-   */
-  const clearCart = useCallback(() => {
-    setItems([]);
-    setCheckoutId(null);
-    setCheckoutUrl(null);
-    localStorage.removeItem(CART_STORAGE_KEY);
-    localStorage.removeItem(CHECKOUT_STORAGE_KEY);
-  }, []);
-
-  /**
-   * Initiate Shopify Checkout - Indian Market Optimized
-   * Creates checkout with allowPartialAddresses and phone as primary contact
-   * Redirects to Shopify checkout where Razorpay/Delhivery are configured
-   */
-  const initiateCheckout = useCallback(async (customerInfo = {}) => {
-    if (items.length === 0) {
-      setCheckoutError('Cart is empty');
-      return null;
+    } catch (e) {
+      console.error('Error saving cart id to storage:', e);
     }
+  }, [cartId]);
 
-    // Check if Shopify is configured
+  // Restore the cart from Shopify when we have an id but no cart yet.
+  const refreshCart = useCallback(async () => {
+    if (!cartId) return null;
     if (!isShopifyConfigured()) {
-      // Fallback for demo/development - show alert
-      console.warn('Shopify not configured. Using demo mode.');
-      setCheckoutError('Shopify credentials not configured. Please add REACT_APP_SHOPIFY_STOREFRONT_URL and REACT_APP_SHOPIFY_STOREFRONT_TOKEN to your .env file.');
+      setCart(null);
       return null;
     }
-
-    setIsCheckoutLoading(true);
-    setCheckoutError(null);
-
+    setIsLoading(true);
+    setError(null);
     try {
-      // Build line items with variant IDs
-      const lineItems = items.map(item => ({
-        variantId: item.variantId,
-        quantity: item.quantity,
-      }));
-
-      // Filter out items without variant IDs (shouldn't happen but safety check)
-      const validLineItems = lineItems.filter(item => item.variantId);
-
-      if (validLineItems.length === 0) {
-        throw new Error('No valid items in cart. Please try adding products again.');
+      const fetched = await fetchCart(cartId);
+      // The cart may have been deleted on the Shopify side. If so, drop it
+      // locally so the next addVariant creates a new one.
+      if (!fetched) {
+        setCart(null);
+        setCartId(null);
+        return null;
       }
-
-      // Create Shopify checkout with Indian market settings
-      // allowPartialAddresses: true - allows flexible address entry
-      // phone as primary contact - standard for Indian customers
-      const checkout = await createCheckout(validLineItems, {
-        phone: customerInfo.phone || '',
-        email: customerInfo.email || '',
-        firstName: customerInfo.firstName || '',
-        lastName: customerInfo.lastName || '',
-        country: 'IN', // Default to India
-      });
-
-      if (checkout) {
-        // Save checkout info
-        setCheckoutId(checkout.id);
-        setCheckoutUrl(checkout.webUrl);
-        
-        localStorage.setItem(CHECKOUT_STORAGE_KEY, JSON.stringify({
-          id: checkout.id,
-          webUrl: checkout.webUrl,
-        }));
-
-        // Redirect to Shopify checkout (Razorpay & Delhivery configured there)
-        window.location.href = checkout.webUrl;
-        
-        return checkout;
-      }
-    } catch (error) {
-      console.error('Checkout error:', error);
-      setCheckoutError(error.message || 'Failed to create checkout. Please try again.');
+      setCart(fetched);
+      return fetched;
+    } catch (err) {
+      console.error('Failed to fetch cart:', err);
+      setError(err.message || 'Could not load your cart');
+      // If the cart id is invalid, drop it so we re-create on next add.
+      setCartId(null);
+      setCart(null);
       return null;
     } finally {
-      setIsCheckoutLoading(false);
+      setIsLoading(false);
     }
-  }, [items]);
+  }, [cartId]);
 
-  /**
-   * Resume existing checkout (if user returns)
-   */
-  const resumeCheckout = useCallback(() => {
-    if (checkoutUrl) {
-      window.location.href = checkoutUrl;
+  useEffect(() => {
+    if (cartId && !cart && isShopifyConfigured()) {
+      refreshCart();
     }
-  }, [checkoutUrl]);
+  }, [cartId, cart, refreshCart]);
 
-  // Calculate totals
-  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-  
-  const totalPrice = items.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
-    0
+  // Add a variant to the cart. If no cart exists, creates one. If a variant
+  // for the same merchandise already exists in the cart, increments its
+  // quantity instead of adding a duplicate line.
+  const addVariant = useCallback(
+    async (product, selectedSize, selectedColor, quantity = 1) => {
+      const merchandiseId = getVariantId(product, selectedSize, selectedColor);
+      if (!merchandiseId) {
+        const message =
+          'Could not find a matching variant for the selected options.';
+        setError(message);
+        throw new Error(message);
+      }
+      if (!isShopifyConfigured()) {
+        const message =
+          'Shopify is not configured. Add the REACT_APP_SHOPIFY_* env vars to enable checkout.';
+        setError(message);
+        throw new Error(message);
+      }
+      if (inFlight.current) return;
+      inFlight.current = true;
+      setIsLoading(true);
+      setError(null);
+      try {
+        // If the user has already added this variant, increment its line.
+        const existing = (cart?.lines?.nodes || []).find((line) => {
+          if (!line.merchandise) return false;
+          return line.merchandise.id === merchandiseId;
+        });
+
+        let updatedCart;
+        if (!cartId) {
+          updatedCart = await createCart({
+            lines: [{ merchandiseId, quantity }],
+          });
+          if (updatedCart?.id) {
+            setCartId(updatedCart.id);
+          }
+        } else if (existing) {
+          updatedCart = await updateCartLines(cartId, [
+            { id: existing.id, quantity: existing.quantity + quantity },
+          ]);
+        } else {
+          updatedCart = await addCartLines(cartId, [
+            { merchandiseId, quantity },
+          ]);
+        }
+        setCart(updatedCart);
+        setIsCartOpen(true);
+        return updatedCart;
+      } catch (err) {
+        console.error('Failed to add variant:', err);
+        setError(err.message || 'Could not add to cart');
+        throw err;
+      } finally {
+        setIsLoading(false);
+        inFlight.current = false;
+      }
+    },
+    [cart, cartId]
   );
 
-  // Get currency code from first item (should be consistent)
-  const currencyCode = items[0]?.product?.currencyCode || 'INR';
+  // Update a cart line's quantity by its line id.
+  const updateLineQuantity = useCallback(
+    async (lineId, quantity) => {
+      if (!cartId) return;
+      if (quantity <= 0) {
+        const snapshot = removeLineRef.current;
+        return snapshot ? snapshot(lineId) : null;
+      }
+      if (inFlight.current) return;
+      inFlight.current = true;
+      setIsLoading(true);
+      setError(null);
+      try {
+        const updatedCart = await updateCartLines(cartId, [
+          { id: lineId, quantity },
+        ]);
+        setCart(updatedCart);
+        return updatedCart;
+      } catch (err) {
+        console.error('Failed to update line:', err);
+        setError(err.message || 'Could not update cart');
+        throw err;
+      } finally {
+        setIsLoading(false);
+        inFlight.current = false;
+      }
+    },
+    [cartId]
+  );
+
+  // Remove a single line by its line id.
+  const removeLine = useCallback(
+    async (lineId) => {
+      if (!cartId) return;
+      if (inFlight.current) return;
+      inFlight.current = true;
+      setIsLoading(true);
+      setError(null);
+      try {
+        const updatedCart = await removeCartLines(cartId, [lineId]);
+        setCart(updatedCart);
+        return updatedCart;
+      } catch (err) {
+        console.error('Failed to remove line:', err);
+        setError(err.message || 'Could not remove line');
+        throw err;
+      } finally {
+        setIsLoading(false);
+        inFlight.current = false;
+      }
+    },
+    [cartId]
+  );
+
+  // Keep removeLineRef in sync with the latest removeLine so
+  // updateLineQuantity can forward to it without circular dependencies.
+  useEffect(() => {
+    removeLineRef.current = removeLine;
+  }, [removeLine]);
+
+  // Clear the local cart (drop the cart id and the in-memory cart).
+  // Does not call Shopify — the cart remains on the Shopify side and can
+  // be re-attached by saving the id again.
+  const clearLocalCart = useCallback(() => {
+    setCart(null);
+    setCartId(null);
+    setError(null);
+  }, []);
+
+  // Redirect to Shopify's hosted checkout. The checkoutUrl comes from the
+  // cart object — never construct it manually.
+  const openCheckout = useCallback(() => {
+    if (!cart?.checkoutUrl) {
+      setError('Cart is not ready for checkout yet.');
+      return;
+    }
+    if (typeof window !== 'undefined') {
+      window.location.assign(cart.checkoutUrl);
+    }
+  }, [cart]);
+
+  // Derived values from the cart.
+  const lines = useMemo(
+    () => cart?.lines?.nodes || [],
+    [cart]
+  );
+  const totalItems = useMemo(() => {
+    if (cart?.totalQuantity != null) return cart.totalQuantity;
+    return lines.reduce((sum, line) => sum + (line.quantity || 0), 0);
+  }, [cart, lines]);
+  const subtotal = useMemo(
+    () => cart?.cost?.subtotalAmount?.amount ?? null,
+    [cart]
+  );
+  const total = useMemo(
+    () => cart?.cost?.totalAmount?.amount ?? null,
+    [cart]
+  );
+  const currencyCode = useMemo(
+    () =>
+      cart?.cost?.totalAmount?.currencyCode ||
+      cart?.cost?.subtotalAmount?.currencyCode ||
+      'INR',
+    [cart]
+  );
+  const checkoutUrl = cart?.checkoutUrl || null;
 
   return (
     <CartContext.Provider
       value={{
-        items,
-        addItem,
-        removeItem,
-        updateQuantity,
-        clearCart,
+        cart,
+        cartId,
+        lines,
         totalItems,
-        totalPrice,
+        subtotal,
+        total,
         currencyCode,
+        checkoutUrl,
         isCartOpen,
         setIsCartOpen,
-        // Shopify checkout
-        checkoutId,
-        checkoutUrl,
-        isCheckoutLoading,
-        checkoutError,
-        initiateCheckout,
-        resumeCheckout,
+        isLoading,
+        error,
+        addVariant,
+        updateLineQuantity,
+        removeLine,
+        clearLocalCart,
+        refreshCart,
+        openCheckout,
       }}
     >
       {children}
