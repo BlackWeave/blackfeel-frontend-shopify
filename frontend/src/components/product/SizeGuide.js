@@ -1,7 +1,7 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { SIZE_GUIDE, SIZES } from '@/data/products';
+import { SIZE_GUIDE, SIZES } from '@/data/site';
 import { Ruler } from 'lucide-react';
 
 export const SizeGuide = ({ trigger }) => {

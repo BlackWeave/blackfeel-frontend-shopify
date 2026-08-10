@@ -1,13 +1,14 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
-import { Filter, X, Lock } from 'lucide-react';
+import { Filter, X, Lock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { ProductCard } from '@/components/product/ProductCard';
 import { useAuth, PROTECTED_CATEGORIES } from '@/context/AuthContext';
-import { PRODUCTS, CATEGORIES, COLORS, SIZES } from '@/data/products';
+import { fetchProducts, fetchProductsByCollection, isShopifyConfigured } from '@/lib/shopify';
+import { CATEGORIES, COLORS, SIZES } from '@/data/site';
 
 // Filter Content Component (moved outside to prevent re-render issues)
 const FilterContent = ({ 
@@ -127,11 +128,50 @@ export default function ShopPage() {
   const { isAuthenticated, requestAuth } = useAuth();
   const navigate = useNavigate();
   
+  // State for Shopify products
+  const [shopifyProducts, setShopifyProducts] = useState([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  
   // Get filter values from URL - memoized to prevent unnecessary re-renders
   const selectedCategory = searchParams.get('category') || '';
   const colorsParam = searchParams.get('colors');
   const sizesParam = searchParams.get('sizes');
   const sortBy = searchParams.get('sort') || 'featured';
+  
+  // Fetch products from Shopify.
+  useEffect(() => {
+    let cancelled = false;
+    async function loadProducts() {
+      setIsLoadingProducts(true);
+      setLoadError(null);
+      try {
+        if (!isShopifyConfigured()) {
+          if (!cancelled) setShopifyProducts([]);
+          return;
+        }
+        const products = selectedCategory
+          ? await fetchProductsByCollection(selectedCategory)
+          : await fetchProducts();
+        if (!cancelled) {
+          setShopifyProducts(products || []);
+        }
+      } catch (error) {
+        console.error('Error loading products:', error);
+        if (!cancelled) {
+          setLoadError(error.message || 'Could not load products');
+          setShopifyProducts([]);
+        }
+      } finally {
+        if (!cancelled) setIsLoadingProducts(false);
+      }
+    }
+
+    loadProducts();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCategory]);
   
   // Check if current category requires auth
   useEffect(() => {
@@ -152,27 +192,27 @@ export default function ShopPage() {
     [sizesParam]
   );
 
-  // Filter products
+  // Filter products (Shopify data only).
   const filteredProducts = useMemo(() => {
-    let result = [...PRODUCTS];
-
-    // Filter by category
-    if (selectedCategory) {
-      result = result.filter(p => p.category === selectedCategory);
-    }
+    let result = [...shopifyProducts];
 
     // Filter by colors
     if (selectedColors.length > 0) {
-      result = result.filter(p => 
-        p.colors.some(c => selectedColors.includes(c))
-      );
+      result = result.filter(p => {
+        if (!p.colors) return false;
+        return p.colors.some(c => {
+          const colorName = typeof c === 'string' ? c.toLowerCase() : c?.name?.toLowerCase();
+          return selectedColors.some(sc => sc.toLowerCase() === colorName);
+        });
+      });
     }
 
     // Filter by sizes
     if (selectedSizes.length > 0) {
-      result = result.filter(p => 
-        p.sizes.some(s => selectedSizes.includes(s))
-      );
+      result = result.filter(p => {
+        if (!p.sizes) return false;
+        return p.sizes.some(s => selectedSizes.includes(s));
+      });
     }
 
     // Sort
@@ -184,7 +224,7 @@ export default function ShopPage() {
         result.sort((a, b) => b.price - a.price);
         break;
       case 'name':
-        result.sort((a, b) => a.name.localeCompare(b.name));
+        result.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         break;
       default:
         // Keep original order for 'featured'
@@ -192,7 +232,7 @@ export default function ShopPage() {
     }
 
     return result;
-  }, [selectedCategory, selectedColors, selectedSizes, sortBy]);
+  }, [shopifyProducts, selectedColors, selectedSizes, sortBy]);
 
   // Update URL params
   const updateFilters = (key, value) => {
@@ -375,7 +415,28 @@ export default function ShopPage() {
             )}
 
             {/* Products Grid */}
-            {filteredProducts.length > 0 ? (
+            {isLoadingProducts ? (
+              <div className="flex items-center justify-center py-20">
+                <div className="text-center">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-muted-foreground">Loading products...</p>
+                </div>
+              </div>
+            ) : loadError ? (
+              <div className="text-center py-20">
+                <p className="text-destructive mb-4">{loadError}</p>
+                <Button variant="outline" onClick={() => window.location.reload()}>
+                  Retry
+                </Button>
+              </div>
+            ) : !isShopifyConfigured() ? (
+              <div className="text-center py-20">
+                <p className="text-muted-foreground mb-4">
+                  Shopify is not configured. Add the REACT_APP_SHOPIFY_* env
+                  vars to load products.
+                </p>
+              </div>
+            ) : filteredProducts.length > 0 ? (
               <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
                 {filteredProducts.map((product) => (
                   <ProductCard key={product.id} product={product} />

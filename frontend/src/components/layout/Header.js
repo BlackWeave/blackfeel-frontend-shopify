@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useCart } from '@/context/CartContext';
 import { useAuth, PROTECTED_CATEGORIES } from '@/context/AuthContext';
 import { CartDrawer } from './CartDrawer';
-import { LOGO_URL } from '@/data/products';
+import { LOGO_URL } from '@/data/site';
 
 export const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);

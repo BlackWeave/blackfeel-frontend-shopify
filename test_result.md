@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Test the Swan Tee e-commerce website authentication at https://tshirt-portal.preview.emergentagent.com/ including unauthenticated state with lock indicators, auth modal triggers, Google sign-in flow (mock auth), authenticated state access, and sign out functionality."
+user_problem_statement: "Test the Swan Tee / BlackFeel e-commerce website at https://tshirt-portal.preview.emergentagent.com/ with focus on the Shopify integration features: Product Page Tests (navigate to /product/basic-1, verify INR pricing with ₹ symbol, verify 'Free shipping over ₹999' and '7-day returns' text, select color/size and add to cart), Cart Tests (verify cart drawer opens, INR pricing format, subtotal in INR, checkout button says 'CHECKOUT', 'Shipping & taxes calculated at checkout' text), Shop Page Tests (navigate to /shop, verify products load, INR pricing format, test filtering). Note: Shopify API is not configured so it should be using mock data, but prices should still display in INR format."
 
 frontend:
   - task: "Homepage Tests"
@@ -255,20 +255,50 @@ frontend:
         - agent: "testing"
         - comment: "✅ Authenticated state working perfectly: Lock indicators (●) removed from VOTED DESIGNS and AI nav items, user can access protected collections without auth modal, user avatar visible in header, protected pages load correctly without authentication prompts"
 
-  - task: "Authentication - Sign Out"
+  - task: "Shopify Integration - Product Page INR Formatting"
     implemented: true
     working: true
-    file: "/app/frontend/src/context/AuthContext.js"
+    file: "/app/frontend/src/pages/ProductDetailPage.js"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
         - working: "NA"
         - agent: "testing"
-        - comment: "Need to verify clicking Sign Out in user dropdown signs user out, lock indicators return on protected items"
+        - comment: "Need to test /product/basic-1 page for INR price formatting with ₹ symbol, 'Free shipping over ₹999' text, '7-day returns' text, color/size selection, and add to cart functionality with mock Shopify data"
         - working: true
         - agent: "testing"
-        - comment: "✅ Sign out functionality working perfectly: User dropdown shows Demo User name, demo@example.com email, My Account and Sign Out options, clicking Sign Out successfully signs user out, user avatar disappears, lock indicators (●) return to VOTED DESIGNS and AI nav items"
+        - comment: "✅ Product page INR formatting working perfectly: ₹39 price displayed correctly with INR symbol, 'Free shipping over ₹999' text present, '7-day returns' text present, color selection works (black color with checkmark), size selection works (M size highlighted), add to cart functionality works with proper validation. Mock Shopify data integration working correctly."
+
+  - task: "Shopify Integration - Cart INR Formatting"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/components/layout/CartDrawer.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "Need to test cart drawer functionality with INR formatting (₹ symbol), subtotal display in INR, checkout button text 'CHECKOUT', and 'Shipping & taxes calculated at checkout' text"
+        - working: true
+        - agent: "testing"
+        - comment: "✅ Cart INR formatting working perfectly: Cart drawer opens automatically after adding item, shows 'YOUR CART (1)' title, displays 'Essential Crew' product with ₹39 pricing (found 5 instances of ₹39 in cart), subtotal shows ₹39 correctly, 'CHECKOUT' button present, 'Shipping & taxes calculated at checkout' text displayed. All INR formatting working correctly with mock data."
+
+  - task: "Shopify Integration - Shop Page INR Formatting"
+    implemented: true
+    working: true
+    file: "/app/frontend/src/pages/ShopPage.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+        - agent: "testing"
+        - comment: "Need to test /shop page for product loading, INR price formatting with ₹ symbol, and filtering functionality with mock Shopify data"
+        - working: true
+        - agent: "testing"
+        - comment: "✅ Shop page INR formatting working perfectly: 13 products loaded successfully, 3 products showing ₹39 price with correct INR symbol, category filtering works (Basic filter updates URL to category=basic), sort functionality present, all products display with proper INR formatting. Mock Shopify data integration working correctly."
 
 metadata:
   created_by: "testing_agent"
@@ -289,4 +319,6 @@ agent_communication:
     - agent: "testing"
     - message: "Starting authentication flow testing based on review request. Will test unauthenticated state with lock indicators, auth modal triggers, Google sign-in flow (mock auth), authenticated state access, and sign out functionality."
     - agent: "testing"
-    - message: "✅ AUTHENTICATION TESTING COMPLETED SUCCESSFULLY - All authentication flows are working perfectly. Unauthenticated state shows proper lock indicators (●) on VOTED DESIGNS and AI nav items with 'Sign in to access' badges on protected collections. Auth modal triggers correctly from nav clicks and collection card clicks. Google sign-in flow (MOCKED) works with proper redirection to protected pages. Authenticated state removes lock indicators and enables access to protected content. User dropdown shows correct user info (Demo User, demo@example.com) with My Account and Sign Out options. Sign out functionality works correctly, restoring lock indicators. The authentication system is production-ready."
+    - message: "Starting Shopify integration testing with focus on INR currency formatting. Will test product page (/product/basic-1) for ₹ symbol pricing, shipping/returns text, color/size selection. Cart drawer for INR formatting, subtotal, checkout button. Shop page (/shop) for product loading and INR pricing. Note: Shopify API not configured so using mock data with INR formatting."
+    - agent: "testing"
+    - message: "✅ SHOPIFY INTEGRATION TESTING COMPLETED SUCCESSFULLY - All Shopify integration features working perfectly with proper INR formatting. Product page (/product/basic-1) shows ₹39 price with INR symbol, 'Free shipping over ₹999' and '7-day returns' text present, color/size selection functional. Cart drawer opens automatically, displays ₹39 pricing throughout, shows 'CHECKOUT' button and 'Shipping & taxes calculated at checkout' text. Shop page loads 13 products with correct ₹39 INR pricing, category filtering works. Mock Shopify data integration is working correctly with proper Indian market formatting. All requested features verified and functional."

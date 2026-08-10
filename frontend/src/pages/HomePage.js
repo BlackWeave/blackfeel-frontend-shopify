@@ -1,19 +1,45 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Star, Truck, RefreshCw, Shield, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ProductCard } from '@/components/product/ProductCard';
 import { useAuth, PROTECTED_CATEGORIES } from '@/context/AuthContext';
-import { CATEGORIES, PRODUCTS, HERO_IMAGE, LOGO_URL } from '@/data/products';
+import { fetchProducts, isShopifyConfigured } from '@/lib/shopify';
+import { CATEGORIES, HERO_IMAGE, LOGO_URL } from '@/data/site';
 
 export default function HomePage() {
   const { isAuthenticated, requestAuth } = useAuth();
   const navigate = useNavigate();
-  
-  // Get featured products (one from each category)
-  const featuredProducts = CATEGORIES.map(cat => 
-    PRODUCTS.find(p => p.category === cat.id)
-  ).filter(Boolean);
+
+  // Featured products are loaded from Shopify when configured.
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadFeatured() {
+      if (!isShopifyConfigured()) return;
+      try {
+        const products = await fetchProducts(50);
+        if (cancelled || products.length === 0) return;
+        // Pick one product per category in CATEGORIES order.
+        const byCategory = CATEGORIES.map((cat) =>
+          products.find((p) => {
+            const productType = (p.raw?.productType || '').toLowerCase();
+            return productType === cat.id;
+          })
+        ).filter(Boolean);
+        if (byCategory.length > 0) {
+          setFeaturedProducts(byCategory);
+        }
+      } catch (err) {
+        console.error('Failed to load featured products from Shopify:', err);
+      }
+    }
+    loadFeatured();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Handle category click with auth check
   const handleCategoryClick = (e, category) => {
@@ -193,7 +219,7 @@ export default function HomePage() {
             {/* Image */}
             <div className="aspect-square lg:aspect-[4/5] bg-secondary overflow-hidden">
               <img
-                src={PRODUCTS[0].images[0]}
+                src={featuredProducts[0]?.images?.[0] || '/placeholder.png'}
                 alt="Quality craftsmanship"
                 className="w-full h-full object-cover"
               />
