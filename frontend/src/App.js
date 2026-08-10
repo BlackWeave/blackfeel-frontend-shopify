@@ -18,7 +18,7 @@ function App() {
             <Route element={<Layout />}>
               <Route path="/" element={<HomePage />} />
               <Route path="/shop" element={<ShopPage />} />
-              <Route path="/product/:productId" element={<ProductDetailPage />} />
+              <Route path="/product/:handle" element={<ProductDetailPage />} />
               <Route path="/about" element={<AboutPage />} />
               {/* Placeholder routes for footer links */}
               <Route path="/size-guide" element={<ShopPage />} />

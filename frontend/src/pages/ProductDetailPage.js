@@ -1,19 +1,19 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Minus, Plus, Check, Truck, RefreshCw, IndianRupee, Banknote, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Minus, Plus, Check, Truck, RefreshCw, IndianRupee, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useCart } from '@/context/CartContext';
 import { SizeGuide } from '@/components/product/SizeGuide';
 import { ProductCard } from '@/components/product/ProductCard';
 import { fetchProductByHandle, formatPrice, isShopifyConfigured, getVariantId } from '@/lib/shopify';
-import { getProductById, PRODUCTS } from '@/data/products';
+import { PRODUCTS } from '@/data/products';
 import { getColorById, CATEGORIES } from '@/data/site';
 
 export default function ProductDetailPage() {
-  const { productId } = useParams();
+  // Route param renamed from productId to handle in Commit 3 (see App.js).
+  const { handle } = useParams();
   const { addItem } = useCart();
 
   // State for Shopify product data
@@ -28,79 +28,114 @@ export default function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1);
   const [isAdded, setIsAdded] = useState(false);
 
-  // Fetch product from Shopify or use mock data
+  // Fetch product from Shopify.
+  // Fall back to the mock product only when Shopify is not configured.
   useEffect(() => {
+    let cancelled = false;
     async function loadProduct() {
       setIsLoading(true);
       setError(null);
 
       try {
         if (isShopifyConfigured()) {
-          // Fetch from Shopify Storefront API
-          const product = await fetchProductByHandle(productId);
+          const product = await fetchProductByHandle(handle);
+          if (cancelled) return;
           if (product) {
             setShopifyProduct(product);
           } else {
-            // Fallback to mock data if product not found in Shopify
-            const mockProduct = getProductById(productId);
-            if (mockProduct) {
-              setShopifyProduct(mockProduct);
-            } else {
-              setError('Product not found');
-            }
+            setError('Product not found');
           }
         } else {
-          // Use mock data when Shopify not configured
-          const mockProduct = getProductById(productId);
-          if (mockProduct) {
-            setShopifyProduct(mockProduct);
+          // Mock fallback for local dev before credentials are wired up.
+          const mock = PRODUCTS.find((p) => p.id === handle);
+          if (mock) {
+            setShopifyProduct(mock);
           } else {
             setError('Product not found');
           }
         }
       } catch (err) {
         console.error('Error loading product:', err);
-        // Fallback to mock data on error
-        const mockProduct = getProductById(productId);
-        if (mockProduct) {
-          setShopifyProduct(mockProduct);
-        } else {
-          setError('Failed to load product');
-        }
+        if (cancelled) return;
+        setError('Failed to load product');
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     }
 
     loadProduct();
-  }, [productId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [handle]);
 
   // Use Shopify product or mock product
   const product = shopifyProduct;
 
-  // Get related products (same category, different product)
+  // Get related products (same category, different product).
+  // Without category on Shopify data, fall back to the closest collection.
   const relatedProducts = useMemo(() => {
     if (!product) return [];
     return PRODUCTS
-      .filter(p => p.category === product.category && p.id !== product.id)
+      .filter((p) => p.category === product.category && p.id !== product.id)
       .slice(0, 3);
   }, [product]);
 
-  // Get available variant for selected options
+  // Selected variant: find by current option selections.
   const selectedVariant = useMemo(() => {
-    if (!product?.variants) return null;
-    return product.variants.find(v => {
-      const sizeMatch = !selectedSize || v.options?.size === selectedSize;
-      const colorMatch = !selectedColor || v.options?.color === selectedColor || v.options?.colour === selectedColor;
+    if (!product) return null;
+    const variants = product.variants || [];
+    if (variants.length === 0) return null;
+    return variants.find((v) => {
+      const opts = v.selectedOptions || [];
+      const sizeMatch = !selectedSize
+        ? true
+        : opts.some(
+            (o) =>
+              String(o.name).toLowerCase() === 'size' &&
+              o.value === selectedSize
+          );
+      const colorMatch = !selectedColor
+        ? true
+        : opts.some(
+            (o) =>
+              String(o.name).toLowerCase() === 'color' &&
+              o.value === selectedColor
+          );
       return sizeMatch && colorMatch;
     });
   }, [product, selectedSize, selectedColor]);
 
+  // When the product loads, prefer the first available variant's options as
+  // the initial selection so the Add to Cart button is never disabled by
+  // empty selections. We only auto-pick when the user hasn't already chosen.
+  useEffect(() => {
+    if (!product || !product.variants || product.variants.length === 0) return;
+    if (selectedSize || selectedColor) return;
+    const first =
+      product.variants.find((v) => v.availableForSale) ||
+      product.variants[0];
+    const opts = first.selectedOptions || [];
+    const sizeOpt = opts.find((o) => String(o.name).toLowerCase() === 'size');
+    const colorOpt = opts.find((o) => String(o.name).toLowerCase() === 'color');
+    if (sizeOpt) setSelectedSize(sizeOpt.value);
+    if (colorOpt) setSelectedColor(colorOpt.value);
+  }, [product, selectedSize, selectedColor]);
+
   // Derived values
-  const category = product ? CATEGORIES.find(c => c.id === product.category) : null;
+  const category = product
+    ? CATEGORIES.find((c) => c.id === product.category)
+    : null;
   const currencyCode = product?.currencyCode || 'INR';
-  const isVariantAvailable = selectedVariant?.available !== false;
-  const variantPrice = selectedVariant?.price || product?.price || 0;
+  const isVariantAvailable = selectedVariant
+    ? selectedVariant.availableForSale !== false
+    : true;
+  const variantPrice = selectedVariant
+    ? Number(selectedVariant.price?.amount ?? product.price ?? 0)
+    : product?.price ?? 0;
+  const variantCompareAtPrice = selectedVariant?.compareAtPrice
+    ? Number(selectedVariant.compareAtPrice.amount)
+    : null;
 
   // Loading state
   if (isLoading) {
@@ -138,21 +173,22 @@ export default function ProductDetailPage() {
       alert('Please select a color');
       return;
     }
-    
-    // Add product with variant info for Shopify checkout
+
+    // Resolve the variant id. product.id from the adapter is the Shopify
+    // Product gid (or mock id), and addItem uses getVariantId internally.
     addItem(product, selectedSize, selectedColor, quantity);
     setIsAdded(true);
     setTimeout(() => setIsAdded(false), 2000);
   };
 
   const nextImage = () => {
-    setSelectedImageIndex((prev) => 
+    setSelectedImageIndex((prev) =>
       prev === product.images.length - 1 ? 0 : prev + 1
     );
   };
 
   const prevImage = () => {
-    setSelectedImageIndex((prev) => 
+    setSelectedImageIndex((prev) =>
       prev === 0 ? product.images.length - 1 : prev - 1
     );
   };
@@ -160,7 +196,9 @@ export default function ProductDetailPage() {
   // Check if color is a light color (for checkmark visibility)
   const isLightColor = (colorName) => {
     const lightColors = ['white', 'bone', 'cream', 'ivory', 'beige', 'light'];
-    return lightColors.some(light => colorName?.toLowerCase().includes(light));
+    return lightColors.some((light) =>
+      colorName?.toLowerCase().includes(light)
+    );
   };
 
   return (
@@ -173,7 +211,10 @@ export default function ProductDetailPage() {
             <span className="mx-2">/</span>
             <Link to="/shop" className="hover:text-foreground">Shop</Link>
             <span className="mx-2">/</span>
-            <Link to={`/shop?category=${product.category}`} className="hover:text-foreground">
+            <Link
+              to={`/shop?category=${product.category}`}
+              className="hover:text-foreground"
+            >
               {category?.name}
             </Link>
             <span className="mx-2">/</span>
@@ -194,7 +235,7 @@ export default function ProductDetailPage() {
                 alt={`${product.name} - Image ${selectedImageIndex + 1}`}
                 className="w-full h-full object-cover"
               />
-              
+
               {/* Navigation Arrows */}
               {product.images?.length > 1 && (
                 <>
@@ -222,8 +263,8 @@ export default function ProductDetailPage() {
                     key={index}
                     onClick={() => setSelectedImageIndex(index)}
                     className={`w-20 h-24 bg-secondary overflow-hidden flex-shrink-0 border-2 transition-colors ${
-                      selectedImageIndex === index 
-                        ? 'border-foreground' 
+                      selectedImageIndex === index
+                        ? 'border-foreground'
                         : 'border-transparent hover:border-muted-foreground'
                     }`}
                   >
@@ -241,22 +282,14 @@ export default function ProductDetailPage() {
           {/* Product Info */}
           <div className="lg:sticky lg:top-24 lg:self-start">
             <div className="space-y-6">
-              {/* Category Badge */}
+              {/* Category */}
               <div className="flex items-center gap-2">
-                <Link 
+                <Link
                   to={`/shop?category=${product.category}`}
                   className="inline-block text-xs tracking-widest text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {category?.name?.toUpperCase() || product.category?.toUpperCase()}
                 </Link>
-                
-                {/* COD Available Badge - Check for 'COD' tag or metafield */}
-                {product.codAvailable && (
-                  <Badge variant="secondary" className="bg-green-100 text-green-800 hover:bg-green-100">
-                    <Banknote className="h-3 w-3 mr-1" />
-                    COD Available
-                  </Badge>
-                )}
               </div>
 
               {/* Title & Price */}
@@ -268,9 +301,9 @@ export default function ProductDetailPage() {
                   <p className="font-display text-2xl">
                     {formatPrice(variantPrice, currencyCode)}
                   </p>
-                  {selectedVariant?.compareAtPrice && selectedVariant.compareAtPrice > variantPrice && (
+                  {variantCompareAtPrice && variantCompareAtPrice > variantPrice && (
                     <p className="text-lg text-muted-foreground line-through">
-                      {formatPrice(selectedVariant.compareAtPrice, currencyCode)}
+                      {formatPrice(variantCompareAtPrice, currencyCode)}
                     </p>
                   )}
                 </div>
@@ -297,29 +330,33 @@ export default function ProductDetailPage() {
                   </div>
                   <div className="flex flex-wrap gap-3">
                     {product.colors.map((color) => {
-                      // For Shopify products, colors are strings
                       const colorName = typeof color === 'string' ? color : color?.name;
                       const colorHex = typeof color === 'string' ? null : color?.hex;
                       const mockColor = getColorById(color);
-                      
+
                       return (
                         <button
                           key={colorName}
                           onClick={() => setSelectedColor(colorName)}
                           className={`w-10 h-10 rounded-full border-2 transition-all flex items-center justify-center ${
-                            selectedColor === colorName 
-                              ? 'border-foreground scale-110' 
+                            selectedColor === colorName
+                              ? 'border-foreground scale-110'
                               : 'border-transparent hover:border-muted-foreground'
                           }`}
-                          style={{ 
-                            backgroundColor: colorHex || mockColor?.hex || colorName?.toLowerCase() 
+                          style={{
+                            backgroundColor:
+                              colorHex || mockColor?.hex || colorName?.toLowerCase(),
                           }}
                           title={colorName}
                         >
                           {selectedColor === colorName && (
-                            <Check className={`h-4 w-4 ${
-                              isLightColor(colorName) ? 'text-foreground' : 'text-background'
-                            }`} />
+                            <Check
+                              className={`h-4 w-4 ${
+                                isLightColor(colorName)
+                                  ? 'text-foreground'
+                                  : 'text-background'
+                              }`}
+                            />
                           )}
                         </button>
                       );
@@ -360,7 +397,7 @@ export default function ProductDetailPage() {
                 <span className="text-sm font-medium mb-3 block">Quantity</span>
                 <div className="flex items-center border border-border w-fit">
                   <button
-                    onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                     className="h-12 w-12 flex items-center justify-center hover:bg-secondary transition-colors"
                     disabled={quantity <= 1}
                   >
@@ -368,7 +405,7 @@ export default function ProductDetailPage() {
                   </button>
                   <span className="w-12 text-center font-medium">{quantity}</span>
                   <button
-                    onClick={() => setQuantity(q => q + 1)}
+                    onClick={() => setQuantity((q) => q + 1)}
                     className="h-12 w-12 flex items-center justify-center hover:bg-secondary transition-colors"
                   >
                     <Plus className="h-4 w-4" />
@@ -378,12 +415,15 @@ export default function ProductDetailPage() {
 
               {/* Add to Cart */}
               <div className="space-y-3 pt-2">
-                <Button 
+                <Button
                   onClick={handleAddToCart}
                   className={`w-full h-14 font-display text-lg tracking-wider btn-animate ${
                     isAdded ? 'bg-green-600 hover:bg-green-600' : ''
                   }`}
-                  disabled={!isVariantAvailable && (product.sizes?.length > 0 || product.colors?.length > 0)}
+                  disabled={
+                    !isVariantAvailable &&
+                    (product.sizes?.length > 0 || product.colors?.length > 0)
+                  }
                 >
                   {isAdded ? (
                     <>
@@ -396,7 +436,8 @@ export default function ProductDetailPage() {
                     'ADD TO CART'
                   )}
                 </Button>
-                {(!selectedSize && product.sizes?.length > 0) || (!selectedColor && product.colors?.length > 0) ? (
+                {(!selectedSize && product.sizes?.length > 0) ||
+                (!selectedColor && product.colors?.length > 0) ? (
                   <p className="text-xs text-muted-foreground text-center">
                     Please select {!selectedColor && product.colors?.length > 0 && 'a color'}
                     {!selectedSize && !selectedColor && product.sizes?.length > 0 && product.colors?.length > 0 && ' and '}
@@ -405,7 +446,7 @@ export default function ProductDetailPage() {
                 ) : null}
               </div>
 
-              {/* Shipping Info - Indian Market */}
+              {/* Shipping Info */}
               <div className="flex flex-wrap gap-4 py-4">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Truck className="h-4 w-4" />
@@ -415,12 +456,6 @@ export default function ProductDetailPage() {
                   <RefreshCw className="h-4 w-4" />
                   <span>7-day returns</span>
                 </div>
-                {product.codAvailable && (
-                  <div className="flex items-center gap-2 text-sm text-green-700">
-                    <Banknote className="h-4 w-4" />
-                    <span>Cash on Delivery</span>
-                  </div>
-                )}
               </div>
 
               {/* Product Details Accordion */}
@@ -478,18 +513,13 @@ export default function ProductDetailPage() {
                   <AccordionContent>
                     <div className="text-sm text-muted-foreground space-y-3">
                       <p>
-                        Free standard shipping on orders over ₹999. Orders ship within 
-                        1-2 business days via Delhivery.
+                        Free standard shipping on orders over ₹999. Orders ship
+                        within 1-2 business days via Delhivery.
                       </p>
                       <p>
-                        We offer easy returns within 7 days of delivery. Items must be 
-                        unworn with tags attached.
+                        We offer easy returns within 7 days of delivery. Items
+                        must be unworn with tags attached.
                       </p>
-                      {product.codAvailable && (
-                        <p className="text-green-700">
-                          Cash on Delivery available for this product. Additional ₹50 COD charges may apply.
-                        </p>
-                      )}
                     </div>
                   </AccordionContent>
                 </AccordionItem>
